@@ -147,7 +147,8 @@ function Find-WindowByProcess {
         [Parameter(Mandatory)][string]$ProcessName,
         [string]$TitlePattern = ".*",
         [int]$TimeoutSeconds = 10,
-        [int]$PollIntervalMs = 200
+        [int]$PollIntervalMs = 200,
+        [IntPtr[]]$ExcludeHwnds = @()
     )
 
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
@@ -157,7 +158,7 @@ function Find-WindowByProcess {
         # NOTE: Do NOT use $matches here — it is a PowerShell automatic variable
         # that is overwritten by -match inside the Where-Object scriptblock.
         $found = $all | Where-Object {
-            $_.ProcessName -eq $ProcessName -and $_.Title -match $TitlePattern
+            $_.ProcessName -eq $ProcessName -and $_.Title -match $TitlePattern -and $_.Hwnd -notin $ExcludeHwnds
         }
 
         if ($found) {
