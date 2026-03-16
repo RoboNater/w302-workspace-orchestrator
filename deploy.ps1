@@ -14,8 +14,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Load libraries
-. "$PSScriptRoot\lib\Win32.ps1"
+# Load libraries (Win32.ps1 is dot-sourced transitively by WindowManager.ps1)
 . "$PSScriptRoot\lib\WindowManager.ps1"
 . "$PSScriptRoot\lib\VirtualDesktop.ps1"
 . "$PSScriptRoot\lib\TerminalLauncher.ps1"
@@ -48,7 +47,7 @@ $apps = $config.applications
 if ($config.virtual_desktops) {
     $primary = $config.virtual_desktops.primary
     Write-Host "[1/4] Setting up virtual desktop $primary..." -ForegroundColor White
-    Ensure-DesktopCount -Count $primary
+    Ensure-DesktopCount -Count $primary | Out-Null
 }
 
 # Step 2: VS Code
@@ -56,9 +55,11 @@ if ($apps.vscode) {
     Write-Host "[2/4] Launching VS Code..." -ForegroundColor White
     $vscodePath = $apps.vscode.workspace
     $pos = $apps.vscode.window.position
-    Start-AndPosition -FilePath "code" -ArgumentList @($vscodePath) `
+    # Use Code.exe directly; code.cmd requires CMD.EXE as interpreter
+    $codeExe = "$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe"
+    Start-AndPosition -FilePath $codeExe -ArgumentList @($vscodePath) `
         -ProcessName "Code" -TitlePattern "Visual Studio Code" `
-        -X $pos.x -Y $pos.y -Width $pos.width -Height $pos.height
+        -X $pos.x -Y $pos.y -Width $pos.width -Height $pos.height | Out-Null
 }
 
 # Step 3: Windows Terminal
@@ -78,23 +79,24 @@ if ($apps.terminals) {
     $termWin = Find-WindowByProcess -ProcessName "WindowsTerminal" -TimeoutSeconds 10
     if ($termWin) {
         $pos = $apps.terminals.window.position
-        Move-WindowTo -Hwnd $termWin[0].Hwnd -X $pos.x -Y $pos.y -Width $pos.width -Height $pos.height
+        Move-WindowTo -Hwnd $termWin[0].Hwnd -X $pos.x -Y $pos.y -Width $pos.width -Height $pos.height | Out-Null
     }
 }
 
 # Step 4: File Explorer
 if ($apps.explorer) {
     Write-Host "[4/4] Launching File Explorer..." -ForegroundColor White
+    $pos = $apps.explorer.window.position
     foreach ($path in $apps.explorer.paths) {
+        $folderName = Split-Path $path -Leaf
         Start-Process "explorer.exe" -ArgumentList $path
-    }
-    Start-Sleep -Seconds 1
-    $explorerWins = Find-WindowByProcess -ProcessName "explorer" -TimeoutSeconds 5
-    if ($explorerWins -and $apps.explorer.window) {
-        $pos = $apps.explorer.window.position
-        # Position the most recently opened explorer window
-        $latest = $explorerWins | Select-Object -Last 1
-        Move-WindowTo -Hwnd $latest.Hwnd -X $pos.x -Y $pos.y -Width $pos.width -Height $pos.height
+        # Wait specifically for this folder's window by title
+        $explorerWin = Find-WindowByProcess -ProcessName "explorer" `
+            -TitlePattern ([regex]::Escape($folderName)) -TimeoutSeconds 10
+        if ($explorerWin -and $pos) {
+            Move-WindowTo -Hwnd $explorerWin[0].Hwnd `
+                -X $pos.x -Y $pos.y -Width $pos.width -Height $pos.height | Out-Null
+        }
     }
 }
 

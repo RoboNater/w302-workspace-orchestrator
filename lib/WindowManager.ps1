@@ -54,7 +54,7 @@ function Start-AndPosition {
     }
 
     $win = $windows | Select-Object -First 1
-    Move-WindowTo -Hwnd $win.Hwnd -X $X -Y $Y -Width $Width -Height $Height
+    Move-WindowTo -Hwnd $win.Hwnd -X $X -Y $Y -Width $Width -Height $Height | Out-Null
 
     Write-Host "  Positioned $ProcessName at ($X, $Y) ${Width}x${Height}" -ForegroundColor DarkGray
 

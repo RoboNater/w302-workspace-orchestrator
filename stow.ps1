@@ -14,7 +14,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-. "$PSScriptRoot\lib\Win32.ps1"
 . "$PSScriptRoot\lib\WindowManager.ps1"
 
 Import-Module powershell-yaml -ErrorAction Stop
@@ -54,11 +53,19 @@ if ($apps.explorer) {
 # Windows Terminal
 if ($apps.terminals) {
     Write-Host "  Closing Windows Terminal..." -ForegroundColor DarkGray
-    # TODO: More targeted — close only the project's terminal window, not all terminals
-    # For Phase 1, we close the most recent terminal window
+    # Phase 1: close the most recent WT window. WM_CLOSE may trigger a
+    # "close all tabs?" confirmation in WT, so fall back to Stop-Process
+    # after a short grace period if the window is still alive.
     $termWins = Get-AllWindows | Where-Object { $_.ProcessName -eq "WindowsTerminal" }
     if ($termWins) {
-        Close-WindowGracefully -Hwnd $termWins[-1].Hwnd
+        $win = $termWins | Select-Object -Last 1
+        Close-WindowGracefully -Hwnd $win.Hwnd
+        Start-Sleep -Milliseconds 800
+        # If still running, force-terminate by process ID
+        $stillUp = Get-Process -Id $win.ProcessId -ErrorAction SilentlyContinue
+        if ($stillUp) {
+            Stop-Process -Id $win.ProcessId -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 
