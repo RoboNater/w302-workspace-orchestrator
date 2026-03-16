@@ -86,7 +86,7 @@ Write-Host ""
 Write-Host "Cleaning up in 5 seconds..." -ForegroundColor DarkGray
 Start-Sleep -Milliseconds 5000
 if ($wtWin) {
-    Close-WindowGracefully -Hwnd $wtWin[0].Hwnd -ProcessId $wtWin[0].ProcessId
+    Close-WindowGracefully -Hwnd $wtWin[0].Hwnd -Force
     Write-Host "  Closed WT window." -ForegroundColor DarkGray
 }
 

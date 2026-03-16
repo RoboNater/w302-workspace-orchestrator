@@ -65,28 +65,33 @@ function Close-WindowGracefully {
     <#
     .SYNOPSIS
         Send WM_CLOSE to a window handle, with optional force-kill fallback.
+    .DESCRIPTION
+        Sends WM_CLOSE and optionally waits to verify the window actually closed.
+        If the window is still visible after GracePeriodMs (e.g. a "close all tabs?"
+        dialog appeared), sends a second WM_CLOSE to dismiss the confirmation dialog.
+        Uses HWND visibility check rather than Stop-Process so that other windows
+        sharing the same process (e.g. multiple WT windows) are not affected.
     .PARAMETER Hwnd
         Window handle to close.
-    .PARAMETER ProcessId
-        If provided, wait GracePeriodMs after WM_CLOSE and force-kill the process
-        if the window is still alive. Required for apps like Windows Terminal that
-        show a "close all tabs?" confirmation dialog.
+    .PARAMETER Force
+        If set, verify the window closed and send a second WM_CLOSE if it didn't.
     .PARAMETER GracePeriodMs
-        Milliseconds to wait before force-killing. Default: 800.
+        Milliseconds to wait before the follow-up check. Default: 800.
     #>
     param(
         [Parameter(Mandatory)][IntPtr]$Hwnd,
-        [int]$ProcessId = 0,
+        [switch]$Force,
         [int]$GracePeriodMs = 800
     )
 
     [Win32Msg]::SendMessage($Hwnd, [Win32Msg]::WM_CLOSE, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
 
-    if ($ProcessId -gt 0) {
+    if ($Force) {
         Start-Sleep -Milliseconds $GracePeriodMs
-        $stillUp = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
-        if ($stillUp) {
-            Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
+        if ([Win32Window]::IsWindowVisible($Hwnd)) {
+            # Window survived WM_CLOSE (likely a confirmation dialog appeared).
+            # Send WM_CLOSE again to dismiss the dialog.
+            [Win32Msg]::SendMessage($Hwnd, [Win32Msg]::WM_CLOSE, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
         }
     }
 }

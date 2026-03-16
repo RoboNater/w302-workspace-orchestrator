@@ -59,7 +59,7 @@ if ($apps.terminals) {
     $termWins = Get-AllWindows | Where-Object { $_.ProcessName -eq "WindowsTerminal" }
     if ($termWins) {
         $win = $termWins | Select-Object -Last 1
-        Close-WindowGracefully -Hwnd $win.Hwnd -ProcessId $win.ProcessId
+        Close-WindowGracefully -Hwnd $win.Hwnd -Force
     }
 }
 
