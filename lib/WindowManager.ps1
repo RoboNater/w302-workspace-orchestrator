@@ -6,6 +6,18 @@
 
 . "$PSScriptRoot\Win32.ps1"
 
+if (-not ([System.Management.Automation.PSTypeName]'Win32Msg').Type) {
+    Add-Type @"
+    using System;
+    using System.Runtime.InteropServices;
+    public class Win32Msg {
+        [DllImport("user32.dll")]
+        public static extern IntPtr SendMessage(IntPtr hwnd, uint Msg, IntPtr wParam, IntPtr lParam);
+        public const uint WM_CLOSE = 0x0010;
+    }
+"@
+}
+
 function Start-AndPosition {
     <#
     .SYNOPSIS
@@ -56,17 +68,7 @@ function Close-WindowGracefully {
     #>
     param([Parameter(Mandatory)][IntPtr]$Hwnd)
 
-    # WM_CLOSE = 0x0010
-    Add-Type @"
-    using System;
-    using System.Runtime.InteropServices;
-    public class Win32Msg {
-        [DllImport("user32.dll")]
-        public static extern IntPtr SendMessage(IntPtr hwnd, uint Msg, IntPtr wParam, IntPtr lParam);
-        public const uint WM_CLOSE = 0x0010;
-    }
-"@
-
+    # WM_CLOSE = 0x0010 (type defined at module load time)
     [Win32Msg]::SendMessage($Hwnd, [Win32Msg]::WM_CLOSE, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
 }
 
