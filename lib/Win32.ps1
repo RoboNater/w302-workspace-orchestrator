@@ -154,12 +154,14 @@ function Find-WindowByProcess {
 
     while ((Get-Date) -lt $deadline) {
         $all = Get-AllWindows
-        $matches = $all | Where-Object {
+        # NOTE: Do NOT use $matches here — it is a PowerShell automatic variable
+        # that is overwritten by -match inside the Where-Object scriptblock.
+        $found = $all | Where-Object {
             $_.ProcessName -eq $ProcessName -and $_.Title -match $TitlePattern
         }
 
-        if ($matches) {
-            return $matches
+        if ($found) {
+            return $found
         }
 
         Start-Sleep -Milliseconds $PollIntervalMs

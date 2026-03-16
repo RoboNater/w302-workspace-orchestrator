@@ -26,7 +26,7 @@ applications:
         directory: "C:/dev/workspace-orchestrator"  # EDIT THIS
         shell: "pwsh"
       - title: "Scratch"
-        directory: "h:/project-docs"  # EDIT THIS
+        directory: "C:/Users/AgentUser01"
         shell: "pwsh"
 
   explorer:
