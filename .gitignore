@@ -1,0 +1,12 @@
+# State files (machine-specific)
+.state/
+
+# PowerShell module cache
+**/Modules/
+
+# User-specific configs with real paths
+*.local.yaml
+
+# Editor
+.vscode/launch.json
+*.code-workspace

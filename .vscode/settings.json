@@ -1,0 +1,11 @@
+{
+  "powershell.cwd": "${workspaceFolder}",
+  "powershell.powerShellDefaultVersion": "PowerShell (x64)",
+  "files.associations": {
+    "*.workspace.yaml": "yaml"
+  },
+  "editor.formatOnSave": false,
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "editor.tabSize": 4,
+  "files.eol": "\r\n"
+}

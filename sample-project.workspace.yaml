@@ -1,0 +1,38 @@
+# Sample project context — edit paths to match your machine
+# This is what deploy.ps1 reads to set up your workspace.
+
+meta:
+  name: "sample-project"
+  description: "Example workspace for testing the orchestrator"
+
+virtual_desktops:
+  primary: 2
+
+applications:
+  vscode:
+    type: "vscode"
+    workspace: "C:/dev/workspace-orchestrator"  # EDIT THIS
+    window:
+      monitor: 0
+      position: { x: 0, y: 0, width: 960, height: 1040 }
+
+  terminals:
+    type: "windows-terminal"
+    window:
+      monitor: 0
+      position: { x: 960, y: 0, width: 960, height: 520 }
+    tabs:
+      - title: "Project"
+        directory: "C:/dev/workspace-orchestrator"  # EDIT THIS
+        shell: "pwsh"
+      - title: "Scratch"
+        directory: "h:/project-docs"  # EDIT THIS
+        shell: "pwsh"
+
+  explorer:
+    type: "file-explorer"
+    paths:
+      - "C:/dev/workspace-orchestrator"  # EDIT THIS
+    window:
+      monitor: 0
+      position: { x: 960, y: 520, width: 960, height: 520 }
