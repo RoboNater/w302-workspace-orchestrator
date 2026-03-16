@@ -72,11 +72,14 @@ if ($apps.terminals) {
             Command   = $_.run_on_deploy
         }
     }
+    # Snapshot existing WT windows so we position the newly launched one
+    $existingWtHwnds = @(Get-AllWindows | Where-Object { $_.ProcessName -eq "WindowsTerminal" } | ForEach-Object { $_.Hwnd })
+
     Start-TerminalWithTabs -Tabs $tabs
 
     # Position after launch
     Start-Sleep -Seconds 2  # crude wait — P1.1 will refine with polling
-    $termWin = Find-WindowByProcess -ProcessName "WindowsTerminal" -TimeoutSeconds 10
+    $termWin = Find-WindowByProcess -ProcessName "WindowsTerminal" -TimeoutSeconds 10 -ExcludeHwnds $existingWtHwnds
     if ($termWin) {
         $pos = $apps.terminals.window.position
         Move-WindowTo -Hwnd $termWin[0].Hwnd -X $pos.x -Y $pos.y -Width $pos.width -Height $pos.height | Out-Null

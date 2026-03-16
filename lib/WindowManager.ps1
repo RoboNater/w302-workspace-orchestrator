@@ -64,12 +64,36 @@ function Start-AndPosition {
 function Close-WindowGracefully {
     <#
     .SYNOPSIS
-        Send WM_CLOSE to a window handle.
+        Send WM_CLOSE to a window handle, with optional force-kill fallback.
+    .DESCRIPTION
+        Sends WM_CLOSE and optionally waits to verify the window actually closed.
+        If the window is still visible after GracePeriodMs (e.g. a "close all tabs?"
+        dialog appeared), sends a second WM_CLOSE to dismiss the confirmation dialog.
+        Uses HWND visibility check rather than Stop-Process so that other windows
+        sharing the same process (e.g. multiple WT windows) are not affected.
+    .PARAMETER Hwnd
+        Window handle to close.
+    .PARAMETER Force
+        If set, verify the window closed and send a second WM_CLOSE if it didn't.
+    .PARAMETER GracePeriodMs
+        Milliseconds to wait before the follow-up check. Default: 800.
     #>
-    param([Parameter(Mandatory)][IntPtr]$Hwnd)
+    param(
+        [Parameter(Mandatory)][IntPtr]$Hwnd,
+        [switch]$Force,
+        [int]$GracePeriodMs = 800
+    )
 
-    # WM_CLOSE = 0x0010 (type defined at module load time)
     [Win32Msg]::SendMessage($Hwnd, [Win32Msg]::WM_CLOSE, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+
+    if ($Force) {
+        Start-Sleep -Milliseconds $GracePeriodMs
+        if ([Win32Window]::IsWindowVisible($Hwnd)) {
+            # Window survived WM_CLOSE (likely a confirmation dialog appeared).
+            # Send WM_CLOSE again to dismiss the dialog.
+            [Win32Msg]::SendMessage($Hwnd, [Win32Msg]::WM_CLOSE, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+        }
+    }
 }
 
 Write-Verbose "WindowManager functions loaded."

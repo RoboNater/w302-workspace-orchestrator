@@ -33,12 +33,15 @@ $tabs = @(
     }
 )
 
+# Snapshot existing WT windows so we can identify the newly launched one
+$existingWtHwnds = @(Get-AllWindows | Where-Object { $_.ProcessName -eq "WindowsTerminal" } | ForEach-Object { $_.Hwnd })
+
 Start-TerminalWithTabs -Tabs $tabs
 
 # Test 2: Verify the WT window appears
 Write-Host ""
 Write-Host "Test 2: Wait for Windows Terminal window to appear..." -ForegroundColor White
-$wtWin = Find-WindowByProcess -ProcessName "WindowsTerminal" -TimeoutSeconds 15
+$wtWin = Find-WindowByProcess -ProcessName "WindowsTerminal" -TimeoutSeconds 15 -ExcludeHwnds $existingWtHwnds
 
 if ($wtWin) {
     Write-Host "  PASS — Found WT window: '$($wtWin[0].Title)'" -ForegroundColor Green
@@ -80,10 +83,11 @@ Write-Host "  [ ] Both tabs are in a pwsh prompt (not crashed)" -ForegroundColor
 
 # Cleanup
 Write-Host ""
-Write-Host "Cleaning up..." -ForegroundColor DarkGray
+Write-Host "Cleaning up in 5 seconds..." -ForegroundColor DarkGray
+Start-Sleep -Milliseconds 5000
 if ($wtWin) {
-    Close-WindowGracefully -Hwnd $wtWin[0].Hwnd
-    Write-Host "  Sent WM_CLOSE to WT window." -ForegroundColor DarkGray
+    Close-WindowGracefully -Hwnd $wtWin[0].Hwnd -Force
+    Write-Host "  Closed WT window." -ForegroundColor DarkGray
 }
 
 Write-Host ""

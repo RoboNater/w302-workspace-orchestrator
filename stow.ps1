@@ -59,13 +59,7 @@ if ($apps.terminals) {
     $termWins = Get-AllWindows | Where-Object { $_.ProcessName -eq "WindowsTerminal" }
     if ($termWins) {
         $win = $termWins | Select-Object -Last 1
-        Close-WindowGracefully -Hwnd $win.Hwnd
-        Start-Sleep -Milliseconds 800
-        # If still running, force-terminate by process ID
-        $stillUp = Get-Process -Id $win.ProcessId -ErrorAction SilentlyContinue
-        if ($stillUp) {
-            Stop-Process -Id $win.ProcessId -Force -ErrorAction SilentlyContinue
-        }
+        Close-WindowGracefully -Hwnd $win.Hwnd -Force
     }
 }
 
