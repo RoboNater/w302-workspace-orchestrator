@@ -64,12 +64,31 @@ function Start-AndPosition {
 function Close-WindowGracefully {
     <#
     .SYNOPSIS
-        Send WM_CLOSE to a window handle.
+        Send WM_CLOSE to a window handle, with optional force-kill fallback.
+    .PARAMETER Hwnd
+        Window handle to close.
+    .PARAMETER ProcessId
+        If provided, wait GracePeriodMs after WM_CLOSE and force-kill the process
+        if the window is still alive. Required for apps like Windows Terminal that
+        show a "close all tabs?" confirmation dialog.
+    .PARAMETER GracePeriodMs
+        Milliseconds to wait before force-killing. Default: 800.
     #>
-    param([Parameter(Mandatory)][IntPtr]$Hwnd)
+    param(
+        [Parameter(Mandatory)][IntPtr]$Hwnd,
+        [int]$ProcessId = 0,
+        [int]$GracePeriodMs = 800
+    )
 
-    # WM_CLOSE = 0x0010 (type defined at module load time)
     [Win32Msg]::SendMessage($Hwnd, [Win32Msg]::WM_CLOSE, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+
+    if ($ProcessId -gt 0) {
+        Start-Sleep -Milliseconds $GracePeriodMs
+        $stillUp = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+        if ($stillUp) {
+            Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 Write-Verbose "WindowManager functions loaded."
