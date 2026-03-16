@@ -3,7 +3,6 @@
     Phase 1.1 validation: Can we launch, find, and position windows?
 #>
 
-. "$PSScriptRoot\..\lib\Win32.ps1"
 . "$PSScriptRoot\..\lib\WindowManager.ps1"
 
 Write-Host ""

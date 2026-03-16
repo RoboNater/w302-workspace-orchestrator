@@ -12,7 +12,8 @@
         Move-WindowTo -Hwnd $hwnd -X 100 -Y 100 -Width 800 -Height 600
 #>
 
-# Add Win32 types via inline C#
+# Add Win32 types via inline C# (guard against re-loading in the same session)
+if (-not ([System.Management.Automation.PSTypeName]'Win32Window').Type) {
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
@@ -75,6 +76,7 @@ public class Win32Window {
     public const int SW_RESTORE = 9;
 }
 "@
+} # end Add-Type guard
 
 function Get-AllWindows {
     <#
@@ -97,10 +99,10 @@ function Get-AllWindows {
         [Win32Window]::GetWindowText($hwnd, $sb, $sb.Capacity) | Out-Null
         $title = $sb.ToString()
 
-        $pid = [uint32]0
-        [Win32Window]::GetWindowThreadProcessId($hwnd, [ref]$pid) | Out-Null
+        $procId = [uint32]0
+        [Win32Window]::GetWindowThreadProcessId($hwnd, [ref]$procId) | Out-Null
 
-        $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+        $proc = Get-Process -Id $procId -ErrorAction SilentlyContinue
 
         $rect = [Win32Window+RECT]::new()
         [Win32Window]::GetWindowRect($hwnd, [ref]$rect) | Out-Null
@@ -109,7 +111,7 @@ function Get-AllWindows {
         $script:windowCollector.Add([PSCustomObject]@{
             Hwnd        = $hwnd
             Title       = $title
-            ProcessId   = $pid
+            ProcessId   = $procId
             ProcessName = $proc.ProcessName
             Rect        = @{
                 X      = $rect.Left
