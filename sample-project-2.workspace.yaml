@@ -1,0 +1,38 @@
+# Sample Project 2 — Web Server
+# Configuration for isolated testing of deploy/stow cycle
+
+meta:
+  name: "sample-project-2"
+  description: "Lightweight HTTP server for development and testing"
+
+virtual_desktops:
+  primary: 2
+
+applications:
+  vscode:
+    type: "vscode"
+    workspace: "C:/dev/workspace-orchestrator/sample-projects/sample-project-2"
+    window:
+      monitor: 0
+      position: { x: 0, y: 0, width: 960, height: 1040 }
+
+  terminals:
+    type: "windows-terminal"
+    window:
+      monitor: 0
+      position: { x: 960, y: 0, width: 960, height: 520 }
+    tabs:
+      - title: "Server"
+        directory: "C:/dev/workspace-orchestrator/sample-projects/sample-project-2"
+        shell: "pwsh"
+      - title: "Test"
+        directory: "C:/dev/workspace-orchestrator/sample-projects/sample-project-2"
+        shell: "pwsh"
+
+  explorer:
+    type: "file-explorer"
+    paths:
+      - "C:/dev/workspace-orchestrator/sample-projects/sample-project-2"
+    window:
+      monitor: 0
+      position: { x: 960, y: 520, width: 960, height: 520 }
