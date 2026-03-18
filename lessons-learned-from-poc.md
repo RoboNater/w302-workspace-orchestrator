@@ -100,3 +100,48 @@ Phase 2 should treat window handles (HWNDs) as the primary identifiers throughou
 the deploy/stow lifecycle, not process names or PIDs. The deploy service should
 maintain a manifest of HWNDs it created, and stow should close exactly those
 handles — nothing more, nothing less.
+
+---
+
+## 5. Explorer.exe silently fails with forward-slash paths
+
+**What happened:** The YAML config used forward-slash paths (`C:/dev/workspace-orchestrator`)
+which work fine for VS Code and Windows Terminal. However, `explorer.exe` interpreted
+`C:/dev/workspace-orchestrator` as something other than the intended folder and opened
+"Documents" instead. The `Find-WindowByProcess` then timed out looking for a window
+titled "workspace-orchestrator" that never appeared — so the Explorer window was never
+positioned.
+
+**Lesson:** `explorer.exe` is one of the oldest Windows executables and does not handle
+forward-slash paths the way most modern applications do. While PowerShell, .NET, VS Code,
+and Windows Terminal all accept forward slashes, `explorer.exe` silently opens the wrong
+folder (typically "Documents" or "This PC") without any error. This is a silent data bug —
+no error is thrown, no warning is logged, the application simply does the wrong thing.
+
+**Guideline for Phase 2+:** All paths passed to `explorer.exe` must be normalized to
+backslashes. More broadly, any path passed to a native Windows executable should be
+normalized — the YAML config can use forward slashes for readability, but the deploy
+layer must convert before handing off. Consider adding a `Normalize-Path` utility that
+handles this (and trailing-slash cleanup, UNC paths, etc.) in one place.
+
+---
+
+## 6. Deploy must actually use the virtual desktop it creates
+
+**What happened:** The deploy script called `Ensure-DesktopCount` to guarantee enough
+virtual desktops existed, but never called `Move-WindowToDesktop` on the launched windows
+or `Switch-ToDesktop` at the end. All windows opened on the current desktop (desktop 1)
+regardless of the `virtual_desktops.primary: 2` config setting.
+
+**Lesson:** Creating infrastructure is not the same as using it. The virtual desktop
+setup step was written during P1.2 (which validated the APIs in isolation), but the
+P1.4 deploy integration only wired up the "ensure desktops exist" part — the "move
+windows there" and "switch to it" parts were never connected. This is a classic
+integration gap: each component works in its own test, but the orchestration between
+them is incomplete.
+
+**Guideline for Phase 2+:** The deploy sequence should have a clear contract: after
+deploy completes, the user is on the target desktop and all project windows are on that
+desktop. Integration tests should verify the full post-condition, not just that each
+step ran without errors. Consider adding a post-deploy validation step that checks
+window desktop assignments match the config.

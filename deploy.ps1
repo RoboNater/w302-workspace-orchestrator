@@ -44,10 +44,13 @@ $apps = $config.applications
 # --- Deploy sequence ---
 
 # Step 1: Virtual desktops
+$targetDesktopIndex = $null
 if ($config.virtual_desktops) {
     $primary = $config.virtual_desktops.primary
     Write-Host "[1/4] Setting up virtual desktop $primary..." -ForegroundColor White
     Ensure-DesktopCount -Count $primary | Out-Null
+    # primary is 1-based in config; convert to 0-based index
+    $targetDesktopIndex = $primary - 1
 }
 
 # Step 2: VS Code
@@ -57,9 +60,12 @@ if ($apps.vscode) {
     $pos = $apps.vscode.window.position
     # Use Code.exe directly; code.cmd requires CMD.EXE as interpreter
     $codeExe = "$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe"
-    Start-AndPosition -FilePath $codeExe -ArgumentList @($vscodePath) `
+    $vscodeWin = Start-AndPosition -FilePath $codeExe -ArgumentList @($vscodePath) `
         -ProcessName "Code" -TitlePattern "Visual Studio Code" `
-        -X $pos.x -Y $pos.y -Width $pos.width -Height $pos.height | Out-Null
+        -X $pos.x -Y $pos.y -Width $pos.width -Height $pos.height
+    if ($vscodeWin -and $targetDesktopIndex -ne $null) {
+        Move-WindowToDesktop -Hwnd $vscodeWin.Hwnd -DesktopIndex $targetDesktopIndex | Out-Null
+    }
 }
 
 # Step 3: Windows Terminal
@@ -83,6 +89,9 @@ if ($apps.terminals) {
     if ($termWin) {
         $pos = $apps.terminals.window.position
         Move-WindowTo -Hwnd $termWin[0].Hwnd -X $pos.x -Y $pos.y -Width $pos.width -Height $pos.height | Out-Null
+        if ($targetDesktopIndex -ne $null) {
+            Move-WindowToDesktop -Hwnd $termWin[0].Hwnd -DesktopIndex $targetDesktopIndex | Out-Null
+        }
     }
 }
 
@@ -91,16 +100,27 @@ if ($apps.explorer) {
     Write-Host "[4/4] Launching File Explorer..." -ForegroundColor White
     $pos = $apps.explorer.window.position
     foreach ($path in $apps.explorer.paths) {
-        $folderName = Split-Path $path -Leaf
-        Start-Process "explorer.exe" -ArgumentList $path
+        # explorer.exe requires backslashes — forward slashes open the wrong folder
+        $nativePath = $path.Replace('/', '\')
+        $folderName = Split-Path $nativePath -Leaf
+        Start-Process "explorer.exe" -ArgumentList $nativePath
         # Wait specifically for this folder's window by title
         $explorerWin = Find-WindowByProcess -ProcessName "explorer" `
             -TitlePattern ([regex]::Escape($folderName)) -TimeoutSeconds 10
         if ($explorerWin -and $pos) {
             Move-WindowTo -Hwnd $explorerWin[0].Hwnd `
                 -X $pos.x -Y $pos.y -Width $pos.width -Height $pos.height | Out-Null
+            if ($targetDesktopIndex -ne $null) {
+                Move-WindowToDesktop -Hwnd $explorerWin[0].Hwnd -DesktopIndex $targetDesktopIndex | Out-Null
+            }
         }
     }
+}
+
+# Step 5: Switch to the target virtual desktop
+if ($targetDesktopIndex -ne $null) {
+    Write-Host "[5/5] Switching to virtual desktop $($targetDesktopIndex + 1)..." -ForegroundColor White
+    Switch-ToDesktop -DesktopIndex $targetDesktopIndex | Out-Null
 }
 
 Write-Host ""

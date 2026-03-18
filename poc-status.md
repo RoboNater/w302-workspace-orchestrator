@@ -69,6 +69,8 @@ When `Test-TerminalLaunch.ps1` runs, a Windows Terminal window opens. Verify:
 ### P1.4 — Deploy/Stow Cycle
 
 When `Test-DeployStow.ps1` (or `deploy.ps1 -Project sample-project`) runs:
+- [ ] All windows open on virtual desktop 2 (not desktop 1)
+- [ ] The active desktop switches to desktop 2 after deploy completes
 - [ ] VS Code opens at position (0, 0), sized 960×1040
 - [ ] Windows Terminal opens at position (960, 0), sized 960×520 with two tabs: **Project** and **Scratch**
 - [ ] File Explorer opens at position (960, 520), sized 960×520 showing `C:\dev\workspace-orchestrator`
@@ -127,6 +129,8 @@ These bugs were found and fixed before the PoC was working:
 2. **`Add-Type` double-load** — `Win32.ps1` was dot-sourced twice (directly and via `WindowManager.ps1`); added type-existence guard
 3. **`Add-Type` in function body** — `Win32Msg` type was re-defined on every call to `Close-WindowGracefully`; moved to module level with guard
 4. **`$matches` automatic variable conflict** — `Find-WindowByProcess` used `$matches` as a local variable, which was overwritten by the `-match` operator inside `Where-Object`; renamed to `$found`
+5. **Explorer forward-slash paths** — `explorer.exe` silently opens "Documents" when given forward-slash paths like `C:/dev/foo`; deploy now converts YAML paths to backslashes before passing to explorer
+6. **Virtual desktop windows not moved** — `deploy.ps1` ensured desktops existed but never called `Move-WindowToDesktop` or `Switch-ToDesktop`; deploy now moves each window to the target desktop and switches to it
 
 ---
 
