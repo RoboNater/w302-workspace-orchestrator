@@ -39,8 +39,8 @@ pwsh -File .\test\Test-TerminalLaunch.ps1
 pwsh -File .\test\Test-DeployStow.ps1
 
 # Or run deploy/stow manually:
-.\deploy.ps1 -Project sample-project
-.\stow.ps1   -Project sample-project
+.\deploy.ps1 -Project sample-project-1
+.\stow.ps1   -Project sample-project-1
 ```
 
 ---
@@ -68,41 +68,27 @@ When `Test-TerminalLaunch.ps1` runs, a Windows Terminal window opens. Verify:
 
 ### P1.4 — Deploy/Stow Cycle
 
-When `Test-DeployStow.ps1` (or `deploy.ps1 -Project sample-project`) runs:
+When `Test-DeployStow.ps1` (or `deploy.ps1 -Project sample-project-1`) runs:
 - [ ] All windows open on virtual desktop 2 (not desktop 1)
 - [ ] The active desktop switches to desktop 2 after deploy completes
 - [ ] VS Code opens at position (0, 0), sized 960×1040
 - [ ] Windows Terminal opens at position (960, 0), sized 960×520 with two tabs: **Project** and **Scratch**
-- [ ] File Explorer opens at position (960, 520), sized 960×520 showing `C:\dev\workspace-orchestrator`
+- [ ] File Explorer opens at position (960, 520), sized 960×520 showing `C:\dev\workspace-orchestrator\sample-projects\sample-project-1`
 - [ ] After stow, all three windows are closed
 
 ---
 
-## Customizing the Sample Project Config
+## Sample Project Configs
 
-Edit `sample-project.workspace.yaml` to point to your real project paths:
+Two sample projects are included under `sample-projects/`:
 
-```yaml
-applications:
-  vscode:
-    workspace: "C:/your/real/project"       # <- your VS Code workspace or folder
+- `sample-project-1.workspace.yaml` — Data processing utility (`sample-projects/sample-project-1`)
+- `sample-project-2.workspace.yaml` — Web server project (`sample-projects/sample-project-2`)
 
-  terminals:
-    tabs:
-      - title: "Project"
-        directory: "C:/your/real/project"   # <- where your main terminal starts
-      - title: "Scratch"
-        directory: "C:/Users/YourName"      # <- second tab directory
-
-  explorer:
-    paths:
-      - "C:/your/real/project"              # <- folder to open in Explorer
-```
-
-Then run:
+Edit either YAML to point to your real project paths, then run:
 ```powershell
-.\deploy.ps1 -Project sample-project
-.\stow.ps1   -Project sample-project
+.\deploy.ps1 -Project sample-project-1
+.\stow.ps1   -Project sample-project-1
 ```
 
 ---
@@ -161,10 +147,15 @@ workspace-orchestrator/
 │   ├── Test-WindowPositioning.ps1   # P1.1 — 2/2 pass
 │   ├── Test-VirtualDesktop.ps1      # P1.2 — 4/4 pass
 │   ├── Test-TerminalLaunch.ps1      # P1.3 — 2/2 auto + visual
-│   └── Test-DeployStow.ps1          # P1.4 — 6/6 pass
+│   └── Test-DeployStow.ps1          # P1.4 — 6/6 pass (uses sample-project-1)
+├── sample-projects/
+│   ├── sample-project-1/      # Data processing utility (used by tests)
+│   └── sample-project-2/      # Web server project
 ├── deploy.ps1                 # Deploy a project context from YAML config
 ├── stow.ps1                   # Stow (close) a project context
-├── sample-project.workspace.yaml  # Edit this with your real paths
+├── sample-project-1.workspace.yaml
+├── sample-project-2.workspace.yaml
+├── workspace-orchestrator.workspace.yaml
 ├── poc-status.md              # This file
 ├── workspace-orchestrator-plan.md
 └── workspace-orchestrator-spec.md

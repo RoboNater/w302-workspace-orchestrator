@@ -1,18 +1,18 @@
 <#
 .SYNOPSIS
-    Phase 1.4 validation: full deploy/stow round-trip for sample-project.
+    Phase 1.4 validation: full deploy/stow round-trip for sample-project-1.
 
 .NOTES
     This test launches real applications (VS Code, Windows Terminal, Explorer).
-    If VS Code is already open, the stow step will close windows matching the
-    workspace-orchestrator title — save your work first.
+    If VS Code is already open for sample-project-1, the stow step will close
+    matching windows — save your work first.
 
     Run from the repo root:
         pwsh -File .\test\Test-DeployStow.ps1
 #>
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
-$project  = "sample-project"
+$project  = "sample-project-1"
 
 Write-Host ""
 Write-Host "=== Test: Deploy / Stow Round-Trip ===" -ForegroundColor Cyan
@@ -82,7 +82,7 @@ if ($wtWins) {
 Write-Host ""
 Write-Host "--- VERIFY: File Explorer ---" -ForegroundColor White
 $explorerWins = Get-AllWindows | Where-Object {
-    $_.ProcessName -eq "explorer" -and $_.Title -match "workspace-orchestrator"
+    $_.ProcessName -eq "explorer" -and $_.Title -match "sample-project-1"
 }
 if ($explorerWins) {
     $w = $explorerWins[0]
@@ -90,7 +90,7 @@ if ($explorerWins) {
     Write-Host "         Position: ($($w.Rect.X), $($w.Rect.Y)) $($w.Rect.Width)x$($w.Rect.Height)" -ForegroundColor DarkGray
     $pass++
 } else {
-    Write-Host "  FAIL — No Explorer window for 'workspace-orchestrator' found." -ForegroundColor Red
+    Write-Host "  FAIL — No Explorer window for 'sample-project-1' found." -ForegroundColor Red
     $fail++
 }
 
@@ -114,10 +114,10 @@ Start-Sleep -Seconds 2
 Write-Host "--- VERIFY: Cleanup after stow ---" -ForegroundColor White
 
 $codeAfter = Get-AllWindows | Where-Object {
-    $_.ProcessName -eq "Code" -and $_.Title -match "workspace-orchestrator"
+    $_.ProcessName -eq "Code" -and $_.Title -match "sample-project-1"
 }
 if (-not $codeAfter) {
-    Write-Host "  PASS — VS Code (workspace-orchestrator) no longer visible." -ForegroundColor Green
+    Write-Host "  PASS — VS Code (sample-project-1) no longer visible." -ForegroundColor Green
     $pass++
 } else {
     Write-Host "  FAIL — VS Code window still open after stow." -ForegroundColor Red
@@ -134,10 +134,10 @@ if (-not $wtAfter) {
 }
 
 $explorerAfter = Get-AllWindows | Where-Object {
-    $_.ProcessName -eq "explorer" -and $_.Title -match "workspace-orchestrator"
+    $_.ProcessName -eq "explorer" -and $_.Title -match "sample-project-1"
 }
 if (-not $explorerAfter) {
-    Write-Host "  PASS — Explorer (workspace-orchestrator) no longer visible." -ForegroundColor Green
+    Write-Host "  PASS — Explorer (sample-project-1) no longer visible." -ForegroundColor Green
     $pass++
 } else {
     Write-Host "  FAIL — Explorer window still open after stow." -ForegroundColor Red
