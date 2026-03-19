@@ -1,8 +1,9 @@
 # Proof-of-Concept Status
 
 **Date completed:** 2026-03-16
-**Branch:** master
-**Phase:** 1 — Proof of Concept
+**Phase 1 closed:** 2026-03-18
+**Branch:** main
+**Phase:** 1 — Proof of Concept (COMPLETE)
 
 ---
 
@@ -16,6 +17,7 @@ All four Phase 1 capabilities are implemented and passing automated tests.
 | P1.2 — Virtual desktop management | ✅ Complete | `Test-VirtualDesktop.ps1` | 4/4 pass |
 | P1.3 — Windows Terminal multi-tab launch | ✅ Complete | `Test-TerminalLaunch.ps1` | 2/2 auto + visual |
 | P1.4 — Deploy/stow cycle | ✅ Complete | `Test-DeployStow.ps1` | 6/6 pass |
+| Multi-project isolation | ⚠️ Known limitation | `Test-MultiProjectInteraction.ps1` | WT tracking issue discovered (see below) |
 
 ---
 
@@ -103,6 +105,7 @@ Edit either YAML to point to your real project paths, then run:
 | `Find-WindowByProcess` cannot distinguish a newly launched window from an existing one with the same title | Medium | If you already have VS Code or Explorer open for the same project, deploy re-positions the existing window rather than opening a new one — this is usually the desired behavior |
 | Virtual desktop APIs are undocumented COM interfaces | Medium | The MScholtes VirtualDesktop module (v1.5.11) may break after a major Windows update — check for module updates if virtual desktop operations stop working |
 | No state persistence | Medium | Stow always uses config file positions; no snapshot of where you moved windows during work |
+| WT stow cannot target a specific project's terminal | High | All WT windows share process name `WindowsTerminal`; stow closes the "last" one found, which may be the wrong window. See `design-note-WT-tracking.md` for analysis and Phase 2 options |
 | No run_on_deploy command execution in WT (Windows Terminal limitation) | Low | The `-- pwsh -NoExit -Command "..."` injection works; commands run and shell stays open |
 
 ---
@@ -117,6 +120,16 @@ These bugs were found and fixed before the PoC was working:
 4. **`$matches` automatic variable conflict** — `Find-WindowByProcess` used `$matches` as a local variable, which was overwritten by the `-match` operator inside `Where-Object`; renamed to `$found`
 5. **Explorer forward-slash paths** — `explorer.exe` silently opens "Documents" when given forward-slash paths like `C:/dev/foo`; deploy now converts YAML paths to backslashes before passing to explorer
 6. **Virtual desktop windows not moved** — `deploy.ps1` ensured desktops existed but never called `Move-WindowToDesktop` or `Switch-ToDesktop`; deploy now moves each window to the target desktop and switches to it
+
+---
+
+## Design Notes
+
+- [`design-note-WT-tracking.md`](design-note-WT-tracking.md) — Windows Terminal window identity problem.
+  Discovered during multi-project testing: stow cannot reliably distinguish which WT
+  window belongs to which project. Documents four candidate approaches (HWND state file,
+  `--title` convention, `--window` named instances, intent-based deploy journal) with
+  pros/cons. May warrant a standalone spike project in Phase 2.
 
 ---
 
@@ -147,7 +160,8 @@ workspace-orchestrator/
 │   ├── Test-WindowPositioning.ps1   # P1.1 — 2/2 pass
 │   ├── Test-VirtualDesktop.ps1      # P1.2 — 4/4 pass
 │   ├── Test-TerminalLaunch.ps1      # P1.3 — 2/2 auto + visual
-│   └── Test-DeployStow.ps1          # P1.4 — 6/6 pass (uses sample-project-1)
+│   ├── Test-DeployStow.ps1          # P1.4 — 6/6 pass (uses sample-project-1)
+│   └── Test-MultiProjectInteraction.ps1  # Multi-project isolation test
 ├── sample-projects/
 │   ├── sample-project-1/      # Data processing utility (used by tests)
 │   └── sample-project-2/      # Web server project
@@ -156,6 +170,7 @@ workspace-orchestrator/
 ├── sample-project-1.workspace.yaml
 ├── sample-project-2.workspace.yaml
 ├── workspace-orchestrator.workspace.yaml
+├── design-note-WT-tracking.md # WT window identity problem analysis
 ├── poc-status.md              # This file
 ├── workspace-orchestrator-plan.md
 └── workspace-orchestrator-spec.md

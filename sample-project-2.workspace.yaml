@@ -6,7 +6,7 @@ meta:
   description: "Lightweight HTTP server for development and testing"
 
 virtual_desktops:
-  primary: 2
+  primary: 3
 
 applications:
   vscode:
