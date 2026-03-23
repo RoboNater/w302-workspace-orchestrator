@@ -58,6 +58,6 @@ INVESTIGATION COMPLETE:
 NEXT:
 2026-03-23 Start Phase 2 implementation
 ```
-Read poc-status.md, workspace-orchestrator-plan.md, and phase-2-readiness.md to get context, then begin Phase 2: Minimum Viable Product implementation. Make a detailed plan for the investigation, write it to a new markdown file, then execute as much as you can of the plan, documenting your findings and recommendations in a new investigation results markdown file as you go.
+Read poc-status.md, workspace-orchestrator-plan.md, and phase-2-readiness.md to get context, then begin Phase 2: Minimum Viable Product implementation. Make a detailed plan for the phase, write it to a new markdown file, then execute as much as you can of the plan, documenting your findings and recommendations in a new mvp-status.md markdown file as you go.
 ```
 
