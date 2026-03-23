@@ -2,8 +2,10 @@
 
 **Date completed:** 2026-03-16
 **Phase 1 closed:** 2026-03-18
+**Gate 1 completed:** 2026-03-22
+**Terminal Investigation completed:** 2026-03-23
 **Branch:** main
-**Phase:** 1 — Proof of Concept (COMPLETE)
+**Phase:** 1 — Proof of Concept (COMPLETE) | Investigation (COMPLETE)
 
 ---
 
@@ -133,17 +135,38 @@ These bugs were found and fixed before the PoC was working:
 
 ---
 
+## Investigation: Terminal Emulator Selection (2026-03-23) — ✅ COMPLETE
+
+The Phase 1 PoC identified a critical issue: **Windows Terminal window identity tracking for multi-project scenarios**. See `design-note-WT-tracking.md` for analysis.
+
+A comprehensive investigation evaluated three terminal emulators:
+
+| Terminal | Result | Key Finding |
+|----------|--------|------------|
+| Windows Terminal | ✅ **Recommended** | `--window <name>` feature sets window title to name, making it reliably queryable via Win32 APIs |
+| WezTerm | ❌ Rejected | Windows not enumerable by Win32; cannot integrate with window manager for positioning/closing |
+| Alacritty | ❌ Rejected | DLL compatibility issue on this system; no native tabs (would require tmux) |
+
+**Solution:** Use `--window ws-<projectname>` convention in all WT launches. Window name becomes the title, enabling reliable identification for multi-project stow operations.
+
+**Impact:** Phase 2's P2.1 (Multi-Project Context Switching) is now **UNBLOCKED**.
+
+See `terminal-investigation.md`, `phase-2-readiness.md`, and `INVESTIGATION_SUMMARY.md` for full details.
+
+---
+
 ## Next Steps: Gate 1 → Phase 2
 
-Before starting Phase 2, answer the questions from **Feedback Gate 1** in `workspace-orchestrator-plan.md`:
+**Gate 1 decisions** (2026-03-22) — ✅ LOCKED:
+- [x] Timing reliability — excellent
+- [x] Virtual desktop stability — confirmed stable
+- [x] Terminal experience — CLI approach sufficient; WT tracking problem solved
+- [x] Language decision — **Migrate to C#**
+- [x] Scope refinement — Multi-project switching is the MVP priority
 
-1. **Timing reliability** — How consistent is window positioning across deploys? Any flakiness?
-2. **Virtual desktop stability** — Did the desktop switch feel reliable? Did it survive a Windows update?
-3. **Terminal experience** — Are the tabs and commands working correctly? Is `-- pwsh -NoExit -Command` sufficient for your workflow?
-4. **Language decision** — Stay in PowerShell or migrate to C# for Phase 2?
-5. **Scope refinement** — Based on using this PoC, what matters most for Phase 2?
+See `gate1-decisions.md` for detailed answers.
 
-Document your findings in a short `gate1-decisions.md` file before starting Phase 2 work.
+**Phase 2 is ready to start.** All blockers resolved. See `phase-2-readiness.md` for implementation checklist.
 
 ---
 

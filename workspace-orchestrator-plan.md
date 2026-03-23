@@ -116,50 +116,65 @@ workspace-orchestrator/
 
 ---
 
-## Investigation: Terminal Emulator Selection
+## Investigation: Terminal Emulator Selection — ✅ COMPLETE (2026-03-23)
 
-### Purpose
+### Summary
 
-The Phase 1 PoC revealed that Windows Terminal lacks reliable programmatic window identity — all WT windows share the process name `WindowsTerminal`, titles are transient, and there is no stable external API to associate a WT window with the project that launched it. This is documented in `design-note-WT-tracking.md`.
+A comprehensive investigation evaluated Windows Terminal, WezTerm, and Alacritty for their ability to solve the P2.1 blocking issue: reliable programmatic window identity for multi-project scenarios.
 
-This is a **blocking problem for P2.1 (Multi-Project Context Switching)**. Before committing to a WT-centric architecture in Phase 2, we need to evaluate whether an alternative terminal emulator offers better programmatic control, or whether the WT workarounds (named windows, title conventions, deploy journal) are sufficient.
+**Result:** ✅ **Stay with Windows Terminal** using the `--window <name>` feature.
 
-### Scope
+### Key Findings
 
-This investigation runs **before Phase 2 feature work begins** (or as the very first step of Phase 2). It should produce a clear recommendation with evidence, not a prototype.
+| Terminal | Result | Critical Finding |
+|----------|--------|------------------|
+| **Windows Terminal** | ✅ **Recommended** | `--window ws-<projectname>` sets the window title to the name, making it reliably queryable via Win32 APIs. Problem solved. |
+| **WezTerm** | ❌ Rejected | Windows NOT enumerable via Win32 `EnumWindows()`. Cannot use `SetWindowPos` or `WM_CLOSE`. Architectural incompatibility. |
+| **Alacritty** | ❌ Rejected | DLL_NOT_FOUND error on this system (compatibility issue). Even if fixed: no native tabs, would require tmux/zellij integration. |
 
-### Candidates to Evaluate
+### WT Solution Details
 
-| Terminal | Why investigate | Key questions |
-|----------|----------------|---------------|
-| **Windows Terminal** (status quo) | Already integrated; wide adoption | Does `wt --window <name>` expose an externally queryable identity? Does `--title` survive tab switches? |
-| **WezTerm** | Lua-scriptable, built-in IPC via `wezterm cli`, multiplexer model | Can we launch named windows, query them externally, and close specific instances via CLI? |
-| **Alacritty** | Lightweight, single-window-per-instance model (simpler identity) | No tabs — would we use tmux/multiplexer instead? How does that affect UX? |
-| **Other** (Tabby, Hyper, etc.) | Breadth check | Any offering with a rich enough control API to warrant deeper investigation? |
+```bash
+wt new-tab --window ws-project-1 --title "Tab" -d C:\dev
+```
 
-### Evaluation Criteria
+- Window title is automatically set to `'ws-project-1'`
+- Title is queryable via Win32 `EnumWindows()` → `GetWindowText()`
+- Multiple commands with same `--window <name>` append to same window (no duplicates)
+- Window responds to `SetWindowPos` for positioning
+- `WM_CLOSE` + fallback to `Stop-Process` for graceful closure
+- **Impact:** Phase 2 P2.1 (Multi-Project Context Switching) is now UNBLOCKED
 
-For each candidate, answer:
+### Deliverables
 
-1. **Window identity** — Can we launch an instance with a stable, externally queryable identifier? Can we later find and close that specific instance from outside the terminal process?
-2. **Multi-tab launch** — Can we open multiple named tabs in specific directories with a single command or scripted sequence?
-3. **Command injection** — Can we run a command in a specific tab on launch (equivalent to `-- pwsh -NoExit -Command "..."`)?
-4. **Stow/close** — Can we gracefully close a specific instance without affecting other instances of the same terminal?
-5. **Positioning** — Does the terminal respect `SetWindowPos` / standard Win32 window management?
-6. **User experience** — Is it a terminal people would actually want to use daily? (Appearance, performance, shell integration, settings.)
-7. **Maturity & maintenance** — Is the project actively maintained? Stable releases? Windows-native or cross-platform?
+- `terminal-investigation.md` — Complete test results, scoring table, recommendation
+- `phase-2-readiness.md` — Implementation checklist for Phase 2
+- `INVESTIGATION_SUMMARY.md` — Executive summary
+- `terminal-investigation-plan.md` — Test methodology (for reference)
 
-### Deliverable
+### WT Naming Convention for Phase 2 Implementation
 
-A short decision document (`terminal-investigation.md`) with:
-- A summary table scoring each candidate against the evaluation criteria
-- A recommendation (stick with WT + workarounds, switch to alternative, or support multiple)
-- If recommending WT: which tracking approach from `design-note-WT-tracking.md` to implement
-- If recommending an alternative: a migration plan covering what changes in deploy/stow and what the user experience impact is
+All WT launches in Phase 2 must include the `--window ws-<projectname>` flag:
 
-### Estimated Effort
+```powershell
+# C# example (Phase 2)
+$projectName = "myproject"
+$wtArgs = @(
+    "new-tab",
+    "--window", "ws-$projectName",
+    "--title", "Project Console",
+    "-d", "C:\dev\$projectName"
+)
+Start-Process -FilePath "wt.exe" -ArgumentList $wtArgs
 
-1–2 focused sessions. Primarily research and hands-on testing, no production code.
+# Stow: Find and close by title pattern
+$windows = Get-AllWindows | Where-Object { $_.Title -match "^ws-$projectName`$" }
+foreach ($w in $windows) {
+    Close-WindowGracefully -Hwnd $w.Hwnd
+}
+```
+
+This ensures multi-project isolation without requiring a deploy journal hack or alternative terminals.
 
 ---
 
@@ -179,12 +194,16 @@ Build something you can actually use every day for your real projects. Prioritiz
 
 ### Capabilities
 
-**P2.1 — Multi-Project Context Switching**
+**P2.1 — Multi-Project Context Switching** ✅ NOW UNBLOCKED
 - Support N project context files in `~/.workspaces/`
 - Track which project(s) are currently deployed (state file)
 - `switch` command: atomic stow-current + deploy-target
 - Handle "no project deployed" as a valid state
 - Support multiple projects deployed simultaneously on different virtual desktops
+- **Terminal Identity:** Use `--window ws-<projectname>` convention in all WT launches
+  - Window title automatically set to project name
+  - Stow finds window by title pattern: `ws-<projectname>`
+  - Enables reliable multi-project terminal management (this was the P2.1 blocker)
 
 **P2.2 — Browser Profile Integration**
 - On first `deploy`, create a Chrome/Edge profile for the project if it doesn't exist

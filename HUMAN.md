@@ -39,4 +39,25 @@ get context?
 
 ```
 
+Past session-starting prompts:
+2026-03-23 Investigation of WT challenges and alternative terminals.
+```
+ Read poc-status.md and workspace-orchestrator-plan.md to get context, then start on the "Investigation: Terminal Emulator Selection". Make a detailed plan
+for the investigation, write it to a new markdown file, then execute as much as you can of the plan, documenting your findings and recommendations in a new
+investigation results markdown file as you go. Note that the latest releases of wezterm and alacrity have been installed to the system but have not been
+launched yet.
+```
+
+INVESTIGATION COMPLETE:
+2026-03-23 23:20 Terminal Emulator Investigation DONE
+- Windows Terminal's --window <name> feature solves the P2.1 blocker
+- WT window name becomes the title, making it queryable via Win32 APIs
+- Phase 2 is now unblocked and ready to start
+- See terminal-investigation.md, phase-2-readiness.md, INVESTIGATION_SUMMARY.md
+
+NEXT:
+2026-03-24 Start Phase 2 implementation
+```
+Read poc-status.md, workspace-orchestrator-plan.md, and phase-2-readiness.md to get context, then begin Phase 2: Minimum Viable Product implementation. Start with P2.1 (Multi-Project Context Switching) using the --window ws-<projectname> convention for WT. Make a detailed Phase 2 implementation plan, then execute the first sprints covering terminal identity and deploy journal.
+```
 

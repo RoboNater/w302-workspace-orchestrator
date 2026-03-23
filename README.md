@@ -2,7 +2,7 @@
 
 One-click deploy and stow of entire project contexts on Windows 11 — VS Code, terminals, browsers, file explorers, Office docs — each positioned on the right virtual desktop with the right layout.
 
-## Status: Phase 1 Complete ✓ | Gate 1 Complete ✓ | Phase 2 In Planning
+## Status: Phase 1 Complete ✓ | Gate 1 Complete ✓ | Terminal Investigation Complete ✓ | Phase 2 Ready
 
 **Phase 1 (PoC)** — All capabilities validated:
 - [x] P1.1 — Window discovery & positioning (Win32 API)
@@ -17,10 +17,12 @@ One-click deploy and stow of entire project contexts on Windows 11 — VS Code, 
 - [x] Language decision — **migrate to C#** for Phase 2+
 - [x] Scope refinement — multi-project switching is the MVP priority
 
-**Next: Terminal Emulator Investigation** (pre-Phase 2)
-- Evaluating Windows Terminal, WezTerm, Alacritty for better window identity and stow reliability
-- Phase 2 may support multiple terminal emulators depending on findings
-- See `design-note-WT-tracking.md` and `workspace-orchestrator-plan.md`
+**Terminal Emulator Investigation** (2026-03-23) — ✅ COMPLETE
+- [x] Evaluated Windows Terminal, WezTerm, Alacritty for window identity and stow reliability
+- [x] **Key Finding:** Windows Terminal's `--window <name>` feature solves the P2.1 blocker
+- [x] **Recommendation:** Stay with WT, use `--window ws-<projectname>` naming convention
+- [x] Phase 2 blocked feature P2.1 (Multi-Project Context Switching) is now **UNBLOCKED**
+- See `terminal-investigation.md`, `phase-2-readiness.md`, and `INVESTIGATION_SUMMARY.md`
 
 ## Quick Start (Phase 1 PoC - PowerShell)
 
@@ -55,6 +57,12 @@ See `poc-status.md` for detailed test results and visual verification checklist.
 | [`workspace-orchestrator-plan.md`](workspace-orchestrator-plan.md) | Development phases and roadmap |
 | [`gate1-decisions.md`](gate1-decisions.md) | Gate 1 decisions (language, scope, priorities) |
 | [`design-note-WT-tracking.md`](design-note-WT-tracking.md) | Analysis of Windows Terminal window identity problem |
+| **Investigation Documents** | |
+| [`terminal-investigation-plan.md`](terminal-investigation-plan.md) | Test methodology for terminal emulator evaluation |
+| [`terminal-investigation.md`](terminal-investigation.md) | Complete test results, scoring, and recommendation |
+| [`phase-2-readiness.md`](phase-2-readiness.md) | Phase 2 implementation checklist and readiness gate |
+| [`INVESTIGATION_SUMMARY.md`](INVESTIGATION_SUMMARY.md) | Executive summary of terminal investigation |
+| **Reference** | |
 | [`lessons-learned-from-poc.md`](lessons-learned-from-poc.md) | PoC findings and architectural implications |
 | [`state-of-the-project.20260322t2130.md`](state-of-the-project.20260322t2130.md) | Current state vs. plan assessment |
 
@@ -81,32 +89,35 @@ sample-projects/            # Two test projects (sample-project-1, sample-projec
 
 ## Known Limitations (Phase 1)
 
-| Issue | Impact | Notes |
-|---|---|---|
-| Windows Terminal stow unreliable | **High** | All WT windows share process name; no stable external window identity. Multi-project stow may close the wrong terminal. |
-| VS Code window detection matches any VS Code | Low | If multiple VS Code instances open, first found is positioned |
-| Explorer positioning uses title match | Low | Requires folder name to match; works on Windows 11 |
-| No state persistence | Medium | Stow always uses config positions; snapshots (P2.3) will fix this |
-| Virtual desktop APIs undocumented | Medium | MScholtes VirtualDesktop module (v1.5.11) may break on major Windows update |
+| Issue | Impact | Status | Notes |
+|---|---|---|---|
+| Windows Terminal stow unreliable | **Was High** | ✅ **RESOLVED** | Phase 2 will use `--window ws-<projectname>` convention; window name is set as title and is reliably queryable. |
+| VS Code window detection matches any VS Code | Low | Ongoing | If multiple VS Code instances open, first found is positioned |
+| Explorer positioning uses title match | Low | Ongoing | Requires folder name to match; works on Windows 11 |
+| No state persistence | Medium | P2.3 Feature | Stow always uses config positions; snapshots will fix this in Phase 2 |
+| Virtual desktop APIs undocumented | Medium | Ongoing | MScholtes VirtualDesktop module (v1.5.11) may break on major Windows update |
 
 See `poc-status.md` for full limitations list.
 
 ## What's Next
 
-**Pre-Phase 2: Terminal Emulator Investigation**
-- Research Windows Terminal vs. WezTerm vs. Alacritty for programmatic window management
-- Evaluate whether alternative terminals solve the WT tracking problem
-- Deliverable: `terminal-investigation.md` with recommendation
+**Phase 2: Minimum Viable Product (C#)** — Ready to start!
 
-**Phase 2: Minimum Viable Product (C#)**
-- Multi-project context switching (P2.1 — blocked on terminal investigation)
-- Browser profile integration (P2.2)
-- CLI interface (`ws` command) (P2.4)
-- Global hotkeys (P2.5)
-- Robust error handling and deploy journal (P2.6)
-- Office & OneNote support (P2.7)
+With terminal investigation complete and Windows Terminal's `--window <name>` feature validated, all Phase 2 blockers are resolved. Priorities (from Gate 1):
 
-See `workspace-orchestrator-plan.md` for full roadmap.
+1. **P2.1 — Multi-Project Context Switching** (Previously blocked, NOW UNBLOCKED)
+   - Use `--window ws-<projectname>` naming convention
+   - Implement deploy journal for resilience
+
+2. **P2.4 — CLI Interface** (`ws` command with `deploy`, `stow`, `switch`, `list`, `status`)
+
+3. **P2.5 — Global Hotkeys** (Ctrl+Alt+1/2/3 for quick project switching)
+
+4. **P2.6 — Robust Error Handling** (Deploy journal, retry logic, graceful degradation)
+
+5. **P2.2 — Browser Profile Integration** (Chrome/Edge profile management)
+
+See `workspace-orchestrator-plan.md` for full roadmap and `phase-2-readiness.md` for implementation checklist.
 
 ## Prerequisites (Phase 1 PoC)
 
