@@ -56,8 +56,8 @@ INVESTIGATION COMPLETE:
 - See terminal-investigation.md, phase-2-readiness.md, INVESTIGATION_SUMMARY.md
 
 NEXT:
-2026-03-24 Start Phase 2 implementation
+2026-03-23 Start Phase 2 implementation
 ```
-Read poc-status.md, workspace-orchestrator-plan.md, and phase-2-readiness.md to get context, then begin Phase 2: Minimum Viable Product implementation. Start with P2.1 (Multi-Project Context Switching) using the --window ws-<projectname> convention for WT. Make a detailed Phase 2 implementation plan, then execute the first sprints covering terminal identity and deploy journal.
+Read poc-status.md, workspace-orchestrator-plan.md, and phase-2-readiness.md to get context, then begin Phase 2: Minimum Viable Product implementation. Make a detailed plan for the investigation, write it to a new markdown file, then execute as much as you can of the plan, documenting your findings and recommendations in a new investigation results markdown file as you go.
 ```
 
