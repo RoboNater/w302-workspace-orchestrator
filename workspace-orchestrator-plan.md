@@ -112,6 +112,55 @@ workspace-orchestrator/
 
 **Deliverable:** A short decision document (~1 page) capturing answers and any spec changes before starting Phase 2.
 
+**Gate 1 completed:** 2026-03-22 — see `gate1-decisions.md`
+
+---
+
+## Investigation: Terminal Emulator Selection
+
+### Purpose
+
+The Phase 1 PoC revealed that Windows Terminal lacks reliable programmatic window identity — all WT windows share the process name `WindowsTerminal`, titles are transient, and there is no stable external API to associate a WT window with the project that launched it. This is documented in `design-note-WT-tracking.md`.
+
+This is a **blocking problem for P2.1 (Multi-Project Context Switching)**. Before committing to a WT-centric architecture in Phase 2, we need to evaluate whether an alternative terminal emulator offers better programmatic control, or whether the WT workarounds (named windows, title conventions, deploy journal) are sufficient.
+
+### Scope
+
+This investigation runs **before Phase 2 feature work begins** (or as the very first step of Phase 2). It should produce a clear recommendation with evidence, not a prototype.
+
+### Candidates to Evaluate
+
+| Terminal | Why investigate | Key questions |
+|----------|----------------|---------------|
+| **Windows Terminal** (status quo) | Already integrated; wide adoption | Does `wt --window <name>` expose an externally queryable identity? Does `--title` survive tab switches? |
+| **WezTerm** | Lua-scriptable, built-in IPC via `wezterm cli`, multiplexer model | Can we launch named windows, query them externally, and close specific instances via CLI? |
+| **Alacritty** | Lightweight, single-window-per-instance model (simpler identity) | No tabs — would we use tmux/multiplexer instead? How does that affect UX? |
+| **Other** (Tabby, Hyper, etc.) | Breadth check | Any offering with a rich enough control API to warrant deeper investigation? |
+
+### Evaluation Criteria
+
+For each candidate, answer:
+
+1. **Window identity** — Can we launch an instance with a stable, externally queryable identifier? Can we later find and close that specific instance from outside the terminal process?
+2. **Multi-tab launch** — Can we open multiple named tabs in specific directories with a single command or scripted sequence?
+3. **Command injection** — Can we run a command in a specific tab on launch (equivalent to `-- pwsh -NoExit -Command "..."`)?
+4. **Stow/close** — Can we gracefully close a specific instance without affecting other instances of the same terminal?
+5. **Positioning** — Does the terminal respect `SetWindowPos` / standard Win32 window management?
+6. **User experience** — Is it a terminal people would actually want to use daily? (Appearance, performance, shell integration, settings.)
+7. **Maturity & maintenance** — Is the project actively maintained? Stable releases? Windows-native or cross-platform?
+
+### Deliverable
+
+A short decision document (`terminal-investigation.md`) with:
+- A summary table scoring each candidate against the evaluation criteria
+- A recommendation (stick with WT + workarounds, switch to alternative, or support multiple)
+- If recommending WT: which tracking approach from `design-note-WT-tracking.md` to implement
+- If recommending an alternative: a migration plan covering what changes in deploy/stow and what the user experience impact is
+
+### Estimated Effort
+
+1–2 focused sessions. Primarily research and hands-on testing, no production code.
+
 ---
 
 ## Phase 2: Minimum Viable Product
@@ -120,17 +169,13 @@ workspace-orchestrator/
 
 Build something you can actually use every day for your real projects. Prioritize the daily workflow loop: switch to a project, work, switch to another project.
 
-### Architecture Shift (If Decided at Gate 1)
+### Architecture Shift (Decided at Gate 1: Migrate to C#)
 
-If migrating to C#:
 - Create a .NET 8 console application (CLI-first, GUI later)
 - Port P/Invoke wrappers to proper C# interop classes
 - Use `YamlDotNet` for config parsing
 - Structure as a class library + CLI host (so GUI host can be added in Phase 3)
-
-If staying PowerShell:
-- Refactor into a proper PowerShell module (`WorkspaceOrchestrator`)
-- Add `Invoke-WorkspaceDeploy`, `Invoke-WorkspaceStow`, `Switch-Workspace` cmdlets
+- Keep existing PowerShell PoC scripts as reference until C# tools fully replace them
 
 ### Capabilities
 

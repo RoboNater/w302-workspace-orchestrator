@@ -1,7 +1,7 @@
 # Project Workspace Orchestrator — Design Specification
 
-**Version:** 1.0 Draft  
-**Target Platform:** Windows 11  
+**Version:** 1.1 (updated post-Phase 1 PoC)
+**Target Platform:** Windows 11
 **Purpose:** One-click deploy/stow of entire project contexts — all associated applications, windows, terminal sessions, browser tabs, and documents — with correct placement across virtual desktops.
 
 ---
@@ -65,7 +65,8 @@ applications:
       # OR use named zones: zone: "left-half"
 
   terminals:
-    type: "windows-terminal"
+    type: "terminal"
+    terminal_app: "windows-terminal"      # windows-terminal | wezterm | alacritty (see §5.2)
     desktop: primary
     window:
       monitor: 1
@@ -204,12 +205,18 @@ Order matters for window positioning reliability:
 
 ### 3.3 Window Discovery
 
-After launching each application, the orchestrator must locate its window handle(s). Strategies:
+After launching each application, the orchestrator must locate its window handle(s).
+
+**Primary strategy (validated in PoC):** Before/after HWND delta — snapshot existing HWNDs for the target process before launch, launch the app, then find the new HWND(s) that appeared. This reliably distinguishes newly launched windows from pre-existing ones of the same application.
+
+**Supporting strategies:**
 
 - **Process ID tracking** — launch via `Start-Process -PassThru`, then enumerate windows for that PID
-- **Title matching** — wait for a window with expected title text (regex)
+- **Title matching** — wait for a window with expected title text (regex). Useful for VS Code (title contains workspace name) and Explorer (title contains folder name)
 - **Class name matching** — use Win32 `FindWindow` / `EnumWindows` with known class names
 - **Timeout + retry** — apps like VS Code may take 3-10 seconds to fully render
+
+**PoC finding:** Process name alone is not sufficient for window discovery. Many Windows applications use a single-process, multi-window architecture (Windows Terminal, Chrome, Edge, Explorer). A given process name can own many windows simultaneously, and window discovery must always handle the "app already running" case. See `lessons-learned-from-poc.md` §1.
 
 ---
 
@@ -234,11 +241,22 @@ When the user invokes `stow <project>` (or it's triggered by a context switch):
 
 1. Send `Ctrl+C` / SIGINT to long-running terminal processes (dev servers, tunnels)
 2. Wait `terminal_stow_delay_ms` for graceful shutdown
-3. Close terminal windows
+3. Close terminal windows (see escalation ladder below)
 4. Close browser windows (unless shared with another project)
 5. Close File Explorer and Office windows
 6. Optionally close or leave VS Code running (it persists its own state)
 7. Optionally remove now-empty virtual desktops
+
+**Window close escalation ladder (from PoC):**
+
+Applications may present confirmation dialogs on close (e.g., WT's "close all tabs?" dialog), and many modern apps share a single process across multiple windows. The close path must operate at the *window* level, not the process level:
+
+1. Send `WM_CLOSE` to the specific window handle (HWND)
+2. Wait and verify via HWND visibility check (`IsWindowVisible`)
+3. Send a second `WM_CLOSE` (dismisses confirmation dialogs in most apps)
+4. `Stop-Process` only as a last resort, with a warning that other windows of the same application will be affected
+
+**Never use `Stop-Process` as a first resort** — it kills the entire process, which may include other project terminals, the user's own terminal, or the terminal running the orchestrator itself. See `lessons-learned-from-poc.md` §2, §4.
 
 ---
 
@@ -251,19 +269,32 @@ When the user invokes `stow <project>` (or it's triggered by a context switch):
 - **State:** VS Code handles workspace restoration natively — this is the easiest app
 - **Multi-instance:** Each workspace opens a separate window; title includes workspace name
 
-### 5.2 Windows Terminal
+### 5.2 Terminal Emulator
 
-- **Deploy:** The `wt` CLI supports complex multi-tab, multi-pane layouts:
+> **Note:** The Phase 1 PoC used Windows Terminal exclusively. A terminal emulator investigation is planned before Phase 2 to evaluate whether WT, WezTerm, Alacritty, or another terminal offers the best combination of programmatic control and user experience. See `workspace-orchestrator-plan.md` (Investigation: Terminal Emulator Selection) and `design-note-WT-tracking.md`. The spec below documents what was validated with WT and what challenges remain.
+
+#### 5.2.1 Windows Terminal (PoC-validated)
+
+- **Deploy:** The `wt` CLI supports complex multi-tab layouts. All tab arguments must be passed as a single string to `Start-Process` — passing them as an array causes `;` delimiters to be individually quoted, which WT doesn't recognize:
   ```
-  wt -w myapp new-tab -p "PowerShell" -d C:\dev\myapp\backend --title Backend ;
-     new-tab -p "PowerShell" -d C:\dev\myapp\frontend --title Frontend ;
-     new-tab -p "PowerShell" -d C:\dev\myapp --title Git
+  wt new-tab -p "PowerShell" -d C:\dev\myapp\backend --title Backend ; new-tab -p "PowerShell" -d C:\dev\myapp\frontend --title Frontend
   ```
-- **Session persistence:** Windows Terminal has built-in session restore (`"firstWindowPreference": "persistedWindowLayout"` in settings.json) — but it's global, not per-project
-- **run_on_deploy:** After tabs open, send keystrokes using `SendKeys` or PowerShell `-InputObject` pipe
+- **run_on_deploy:** The `-- pwsh -NoExit -Command "..."` pattern works — the command runs and the shell stays open. SendKeys is not needed for initial command injection.
 - **Working directory:** The `wt` `-d` flag handles this on deploy
-- **History:** PSReadLine persists history globally in `~\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt` — no per-project action needed
-- **Stow:** Identify terminal window by title or PID, send close signal
+- **Session persistence:** Windows Terminal has built-in session restore (`"firstWindowPreference": "persistedWindowLayout"` in settings.json) — but it's global, not per-project
+- **History:** PSReadLine persists history globally — no per-project action needed
+- **Stow — known challenge:** All WT windows share the process name `WindowsTerminal` and window titles are transient (they reflect the active tab's working directory or running command). There is no stable, externally queryable identifier to associate a WT window with the project that launched it. This makes it impossible to reliably close the correct WT window when multiple projects are deployed. See `design-note-WT-tracking.md` for candidate solutions (`--title` convention, `--window` named instances, deploy journal).
+- **Close behavior:** WT presents a "close all tabs?" confirmation dialog on `WM_CLOSE`. A second `WM_CLOSE` dismisses the dialog. `Stop-Process` must be avoided — it kills all WT windows, not just the target one.
+
+#### 5.2.2 Alternative Terminals (Under Investigation)
+
+The terminal emulator investigation will evaluate alternatives against these requirements:
+- Stable, externally queryable window identity per instance
+- Multi-tab launch with named tabs and per-tab directories via CLI
+- Command injection at launch time
+- Graceful per-instance close without affecting other instances
+- Standard Win32 window management (responds to `SetWindowPos`)
+- Good daily-driver UX (appearance, performance, shell integration)
 
 ### 5.3 Browser (Chrome/Edge)
 
@@ -288,6 +319,8 @@ This is the hardest integration. Options ranked by reliability:
 ### 5.4 File Explorer
 
 - **Deploy:** `explorer.exe "C:\path"` opens a new window at that location
+- **Path normalization (PoC finding):** `explorer.exe` silently opens the wrong folder (typically "Documents") when given forward-slash paths like `C:/dev/foo`. All paths must be normalized to backslashes before passing to explorer. The YAML config may use forward slashes for readability, but the deploy layer must convert. See `lessons-learned-from-poc.md` §5.
+- **Window title:** Explorer window titles follow the pattern `"<FolderName> - File Explorer"`. The `-match` operator does substring matching, so matching on just the folder name works.
 - **Position:** Must wait for window to fully render before calling `SetWindowPos`
 - **Stow:** Close by window handle; no state to save (paths are in the config)
 
@@ -473,9 +506,9 @@ windows:
 | **Hybrid: AHK for hotkeys/window mgmt + PowerShell for orchestration** | Best of both worlds | Two languages, IPC overhead |
 | **Electron/Tauri app** | Nice GUI, cross-platform potential | Heavy for a utility, overkill |
 
-**Recommendation for prototyping:** PowerShell for orchestration + AutoHotkey for hotkeys and window positioning. Migrate to C# .NET if it becomes a real product.
+**Phase 1 (completed):** PowerShell for prototyping — validated P/Invoke feasibility, WT CLI integration, and virtual desktop management.
 
-**Recommendation for production:** C# .NET (WPF or WinUI 3) — single language, full Win32 access, proper system tray integration, can package as MSIX.
+**Phase 2+ (decided at Gate 1):** C# .NET — single language, full Win32 access, proper system tray integration, async support, strong typing, can package as MSIX. PowerShell PoC scripts retained as reference.
 
 ---
 
@@ -502,10 +535,15 @@ windows:
 
 ## 11. Edge Cases & Challenges
 
-### 11.1 Single-Instance Applications
+### 11.1 Single-Instance / Multi-Window Applications (Confirmed in PoC)
+- **Windows Terminal** shares a single process across all windows — `Stop-Process` kills everything. Multiple WT windows are indistinguishable by process name. This is the most critical challenge discovered in the PoC.
+- **Chrome/Edge** — same single-process, multi-window architecture
+- **Explorer** — same single-process architecture
 - **Excel** shares one process for all workbooks — can't position per-workbook easily
 - **OneNote** is single-instance — must navigate to the right notebook/section, not just launch
 - **Outlook** — similar constraints
+
+**PoC conclusion:** The orchestrator must track and operate on window handles (HWNDs), never process names or PIDs, as the primary identifier throughout the deploy/stow lifecycle. See `lessons-learned-from-poc.md` §1, §2.
 
 ### 11.2 Shared Resources
 - A browser window might be "shared" between projects (e.g., email). The orchestrator needs a concept of **pinned/global windows** that survive stow operations.
@@ -515,10 +553,12 @@ windows:
 - Window positioning must wait until the window is fully created
 - Terminal tabs take time to initialize before commands can be sent
 - Strategy: **poll with exponential backoff**, max timeout per app
+- **PoC finding:** Window positioning timing was reliable in practice with modest delays. No flakiness observed.
 
-### 11.4 Multi-Project Deploy
+### 11.4 Multi-Project Deploy (Confirmed in PoC)
 - User may want 2+ projects deployed simultaneously on different virtual desktops
 - Stow should support stowing just one project while others remain active
+- **PoC finding:** This scenario exposed the terminal window identity problem — stowing one project closed the wrong terminal window. This is the primary blocker for multi-project support. See `design-note-WT-tracking.md`.
 
 ### 11.5 Dirty State
 - User opens extra tabs/windows not in the config — stow should snapshot these too
@@ -527,6 +567,16 @@ windows:
 ### 11.6 Crash Recovery
 - If the orchestrator crashes mid-deploy, some apps are running without proper positioning
 - Solution: write a deploy journal; on next launch, check for incomplete deploys and offer to clean up or continue
+
+### 11.7 Confirmation Dialogs (Discovered in PoC)
+- Many applications present confirmation dialogs on close (e.g., WT's "close all tabs?" dialog), which intercept `WM_CLOSE` and leave the window alive
+- Automated close operations must verify the window actually closed and have a fallback strategy
+- Per-application close behavior should be configurable. See §4.2 close escalation ladder.
+
+### 11.8 Path Format Sensitivity (Discovered in PoC)
+- `explorer.exe` silently opens the wrong folder when given forward-slash paths
+- The YAML config permits forward slashes for readability, but the deploy layer must normalize all paths to backslashes before passing to native Windows executables
+- Other apps (VS Code, WT) tolerate forward slashes. See `lessons-learned-from-poc.md` §5.
 
 ---
 
@@ -546,12 +596,25 @@ windows:
 
 ## 13. Open Questions
 
-1. **Should stow save dynamic state (new tabs, moved windows) back to the context file, or to a separate snapshot?** — Proposed: separate snapshot, context file is the "canonical" layout.
+1. **Should stow save dynamic state (new tabs, moved windows) back to the context file, or to a separate snapshot?** — Proposed: separate snapshot, context file is the "canonical" layout. PoC used config-only (no snapshots). Snapshot support is planned for Phase 2 (P2.3) but at lower priority.
 
 2. **How to handle browser tabs that the user opens during a session that weren't in the config?** — Proposed: snapshot captures all tabs; re-deploy uses snapshot if available, falls back to config.
 
-3. **Should the orchestrator manage virtual desktop names?** — Windows 11 supports renaming desktops; naming them after projects would be helpful.
+3. **Should the orchestrator manage virtual desktop names?** — Windows 11 supports renaming desktops; naming them after projects would be helpful. PoC used numbered desktops only.
 
 4. **Per-project environment variables?** — Some projects need specific env vars (API keys, ports). Should these be in the context file or delegated to `.env` files?
 
 5. **Integration with existing tools?** — Should this wrap SmartWindows/GlazeWM, or be standalone? Wrapping adds dependency risk but reduces development effort.
+
+6. **(New, from PoC) Which terminal emulator should the orchestrator target?** — Windows Terminal has proven challenging for window identity and stow targeting in multi-project scenarios. An investigation of alternatives (WezTerm, Alacritty, others) is planned before Phase 2. The orchestrator may need to support multiple terminal emulators. See `workspace-orchestrator-plan.md` (Investigation: Terminal Emulator Selection).
+
+7. **(New, from PoC) Should the deploy service maintain a manifest of launched HWNDs?** — The PoC established that window handles are the only reliable way to target specific windows for positioning and closing. A deploy manifest/journal that records HWNDs at launch time would enable reliable stow, partial-deploy recovery, and post-deploy validation. This is closely related to the deploy journal concept in §11.6 and approach #4 in `design-note-WT-tracking.md`.
+
+---
+
+## 14. Revision History
+
+| Date | Version | Changes |
+|------|---------|---------|
+| 2026-03-10 | 1.0 | Initial draft |
+| 2026-03-22 | 1.1 | Post-Phase 1 PoC updates: added terminal emulator abstraction (§2, §5.2), window discovery via HWND delta (§3.3), close escalation ladder (§4.2), Explorer path normalization (§5.4), confirmed technology decision (§9), new edge cases from PoC (§11.7, §11.8), promoted single-process/multi-window from edge case to confirmed challenge (§11.1, §11.4), added open questions §13.6 and §13.7 |
