@@ -12,7 +12,8 @@ var stateManager     = new StateManager();
 var windowManager    = new WindowManager();
 var vdService        = new VirtualDesktopService();
 var terminalLauncher = new TerminalLauncher();
-var deployService    = new DeployService(windowManager, vdService, terminalLauncher, stateManager);
+var browserLauncher  = new BrowserLauncher(windowManager);
+var deployService    = new DeployService(windowManager, vdService, terminalLauncher, browserLauncher, stateManager);
 var stowService      = new StowService(windowManager, stateManager);
 
 // Root command
@@ -31,5 +32,6 @@ root.AddCommand(SwitchCommand.Build(configLoader, deployService, stowService, st
 root.AddCommand(ListCommand.Build(configLoader));
 root.AddCommand(StatusCommand.Build(stateManager));
 root.AddCommand(ValidateCommand.Build(configLoader));
+root.AddCommand(EditCommand.Build(configLoader));
 
 return await root.InvokeAsync(args);

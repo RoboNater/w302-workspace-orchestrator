@@ -1,4 +1,5 @@
 using System.CommandLine;
+using Spectre.Console;
 using WorkspaceOrchestrator.Core.Config;
 using WorkspaceOrchestrator.Core.Services;
 
@@ -15,6 +16,7 @@ public static class SwitchCommand
         Option<bool> verboseOption)
     {
         var projectArg = new Argument<string>("project", "Project to switch to");
+        projectArg.AddCompletions(ctx => loader.ListProjects().Select(p => p.Name));
 
         var cmd = new Command("switch",
             "Atomic context switch: stow the current project, then deploy the target project")
@@ -28,11 +30,9 @@ public static class SwitchCommand
             {
                 string name = project.Replace(".workspace.yaml", "");
 
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine();
-                Console.WriteLine($"Switching to: {name}");
-                Console.ResetColor();
-                Console.WriteLine();
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine($"[cyan]Switching to:[/] [bold]{name}[/]");
+                AnsiConsole.WriteLine();
 
                 // Stow all currently deployed projects
                 var deployed = stateManager.GetAllDeployed();
@@ -42,54 +42,72 @@ public static class SwitchCommand
                     {
                         if (string.Equals(d.Project, name, StringComparison.OrdinalIgnoreCase))
                         {
-                            Console.WriteLine($"  '{name}' is already deployed — will redeploy.");
+                            AnsiConsole.MarkupLine($"  [dim]'{name}' is already deployed — will redeploy.[/]");
                             continue;
                         }
 
-                        Console.ForegroundColor = ConsoleColor.DarkGray;
-                        Console.WriteLine($"  Stowing: {d.Project}");
-                        Console.ResetColor();
-                        stowService.Stow(d.Project, Console.Out, dryRun);
+                        AnsiConsole.MarkupLine($"  [dim]Stowing:[/] {d.Project}");
+
+                        if (!dryRun)
+                        {
+                            AnsiConsole.Status()
+                                .Spinner(Spinner.Known.Dots)
+                                .SpinnerStyle(Style.Parse("dim"))
+                                .Start($"Stowing {d.Project}...", ctx =>
+                                {
+                                    stowService.Stow(d.Project, new SpinnerWriter(ctx), dryRun: false);
+                                });
+                        }
+                        else
+                        {
+                            stowService.Stow(d.Project, Console.Out, dryRun: true);
+                        }
                     }
                 }
                 else
                 {
-                    Console.WriteLine("  No projects currently deployed.");
+                    AnsiConsole.MarkupLine("  [dim]No projects currently deployed.[/]");
                 }
 
-                Console.WriteLine();
+                AnsiConsole.WriteLine();
 
                 // Deploy target
                 string? configPath = loader.FindConfigPath(name);
                 if (configPath is null)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Error.WriteLine($"Error: No config found for project '{name}'.");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine($"[red]Error:[/] No config found for project '[bold]{name}[/]'.");
                     Environment.Exit(1);
                     return;
                 }
 
                 var config = loader.LoadConfig(configPath);
-                Console.ForegroundColor = ConsoleColor.White;
-                Console.WriteLine($"  Deploying: {config.Meta.Name}");
-                Console.ResetColor();
-                deployService.Deploy(config, configPath, Console.Out, dryRun);
+                AnsiConsole.MarkupLine($"  [white]Deploying:[/] {config.Meta.Name}");
 
-                Console.WriteLine();
-                Console.ForegroundColor = dryRun ? ConsoleColor.Yellow : ConsoleColor.Green;
-                Console.WriteLine(dryRun
-                    ? $"[Dry run complete] Switch to '{name}' — no changes made"
-                    : $"Switched to: {name}");
-                Console.ResetColor();
-                Console.WriteLine();
+                if (!dryRun)
+                {
+                    AnsiConsole.Status()
+                        .Spinner(Spinner.Known.Dots)
+                        .SpinnerStyle(Style.Parse("cyan"))
+                        .Start($"Deploying {config.Meta.Name}...", ctx =>
+                        {
+                            deployService.Deploy(config, configPath, new SpinnerWriter(ctx), dryRun: false);
+                        });
+                }
+                else
+                {
+                    deployService.Deploy(config, configPath, Console.Out, dryRun: true);
+                }
+
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine(dryRun
+                    ? $"[yellow]Dry run complete:[/] Switch to '{name}' — no changes made"
+                    : $"[green]✓ Switched to:[/] [bold]{name}[/]");
+                AnsiConsole.WriteLine();
             }
             catch (Exception ex)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Error.WriteLine($"Error: {ex.Message}");
-                Console.ResetColor();
-                if (verbose) Console.Error.WriteLine(ex.StackTrace);
+                AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+                if (verbose) AnsiConsole.WriteException(ex);
                 Environment.Exit(1);
             }
         }, projectArg, dryRunOption, verboseOption);

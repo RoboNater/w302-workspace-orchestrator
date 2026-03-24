@@ -1,12 +1,13 @@
-# Sample Project 1 — Data Processor
-# Configuration for isolated testing of deploy/stow cycle
-
+# Sample Project 1 — Data Processor (schema v2)
+version: 2
 meta:
   name: "sample-project-1"
   description: "Data processing utility - CSV analysis and statistics"
 
 virtual_desktops:
   primary: 2
+
+hotkey: "Ctrl+Alt+1"
 
 applications:
   vscode:
@@ -36,3 +37,13 @@ applications:
     window:
       monitor: 0
       position: { x: 960, y: 520, width: 960, height: 520 }
+
+  browser:
+    type: "chrome"
+    profile: "sample-project-1"
+    urls:
+      - "http://localhost:3000"
+      - "https://github.com"
+    window:
+      monitor: 0
+      position: { x: 0, y: 0, width: 1920, height: 1080 }

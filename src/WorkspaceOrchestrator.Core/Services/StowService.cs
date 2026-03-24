@@ -40,31 +40,63 @@ public class StowService
         return StowFromRecord(record, output, dryRun);
     }
 
+    // App types that use HWND-first close (title is unpredictable at stow time)
+    private static readonly HashSet<string> HwndFirstTypes =
+        new(StringComparer.OrdinalIgnoreCase) { "chrome", "edge", "browser" };
+
     private int StowFromRecord(DeployedProject record, TextWriter output, bool dryRun)
     {
         int closed = 0;
 
         foreach (var app in record.Apps)
         {
-            output.WriteLine($"  Closing {app.Type} (pattern: {app.TitlePattern})...");
+            bool useHwndFirst = HwndFirstTypes.Contains(app.Type) && app.Hwnd != 0;
+            string closeDesc  = useHwndFirst
+                ? $"hwnd:{app.Hwnd}"
+                : $"pattern: {app.TitlePattern}";
+
+            output.WriteLine($"  Closing {app.Type} ({closeDesc})...");
 
             if (dryRun)
             {
-                var targets = FindWindows(app.ProcessName, app.TitlePattern);
-                output.WriteLine($"    [dry-run] Would close {targets.Count} window(s).");
+                if (useHwndFirst)
+                    output.WriteLine($"    [dry-run] Would close window hwnd:{app.Hwnd}.");
+                else
+                {
+                    var targets = FindWindows(app.ProcessName, app.TitlePattern);
+                    output.WriteLine($"    [dry-run] Would close {targets.Count} window(s).");
+                }
                 continue;
             }
 
-            int count = _wm.CloseWindowsByPattern(app.ProcessName, app.TitlePattern);
-            if (count > 0)
+            int count;
+            if (useHwndFirst)
             {
-                output.WriteLine($"    Closed {count} window(s).");
-                closed += count;
+                // Try HWND first; fall back to pattern if the handle is stale
+                bool found = _wm.CloseWindowByHwnd((nint)app.Hwnd);
+                if (found)
+                {
+                    output.WriteLine("    Closed by hwnd.");
+                    count = 1;
+                }
+                else
+                {
+                    output.WriteLine("    hwnd stale — falling back to pattern match...");
+                    count = _wm.CloseWindowsByPattern(app.ProcessName, app.TitlePattern);
+                    output.WriteLine(count > 0
+                        ? $"    Closed {count} window(s) by pattern."
+                        : "    No windows found (already closed).");
+                }
             }
             else
             {
-                output.WriteLine($"    No windows found (already closed).");
+                count = _wm.CloseWindowsByPattern(app.ProcessName, app.TitlePattern);
+                output.WriteLine(count > 0
+                    ? $"    Closed {count} window(s)."
+                    : "    No windows found (already closed).");
             }
+
+            closed += count;
         }
 
         if (!dryRun)

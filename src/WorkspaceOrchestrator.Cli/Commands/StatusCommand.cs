@@ -1,4 +1,5 @@
 using System.CommandLine;
+using Spectre.Console;
 using WorkspaceOrchestrator.Core.Config;
 
 namespace WorkspaceOrchestrator.Cli.Commands;
@@ -13,41 +14,43 @@ public static class StatusCommand
         {
             var deployed = stateManager.GetAllDeployed();
 
-            Console.WriteLine();
+            AnsiConsole.WriteLine();
             if (deployed.Count == 0)
             {
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine("No projects currently deployed.");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine("[dim]No projects currently deployed.[/]");
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine($"Deployed projects ({deployed.Count}):");
-                Console.ResetColor();
-                Console.WriteLine();
+                AnsiConsole.MarkupLine($"[cyan]Deployed projects ({deployed.Count}):[/]");
+                AnsiConsole.WriteLine();
 
                 foreach (var p in deployed)
                 {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("  ● ");
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.Write($"{p.Project,-30}");
-                    Console.ResetColor();
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine($"  deployed {FormatAge(p.DeployedAt)}");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine(
+                        $"  [green]●[/] [bold]{Markup.Escape(p.Project)}[/]  " +
+                        $"[dim]deployed {FormatAge(p.DeployedAt)}[/]");
+
+                    var appTable = new Table()
+                        .HideHeaders()
+                        .Border(TableBorder.None)
+                        .AddColumn("")
+                        .AddColumn("")
+                        .AddColumn("");
 
                     foreach (var app in p.Apps)
                     {
-                        Console.ForegroundColor = ConsoleColor.DarkGray;
-                        Console.WriteLine($"      {app.Type,-10}  {app.TitlePattern}");
-                        Console.ResetColor();
+                        appTable.AddRow(
+                            $"    [dim]{Markup.Escape(app.Type)}[/]",
+                            $"[dim]{Markup.Escape(app.ProcessName)}[/]",
+                            $"[dim]{Markup.Escape(app.TitlePattern)}[/]");
                     }
-                    Console.WriteLine();
+
+                    AnsiConsole.Write(appTable);
+                    AnsiConsole.WriteLine();
                 }
             }
-            Console.WriteLine();
+
+            AnsiConsole.WriteLine();
         });
 
         return cmd;

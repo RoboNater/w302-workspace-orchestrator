@@ -1,12 +1,13 @@
-# Sample Project 2 — Web Server
-# Configuration for isolated testing of deploy/stow cycle
-
+# Sample Project 2 — Web Server (schema v2)
+version: 2
 meta:
   name: "sample-project-2"
   description: "Lightweight HTTP server for development and testing"
 
 virtual_desktops:
   primary: 3
+
+hotkey: "Ctrl+Alt+2"
 
 applications:
   vscode:
@@ -25,6 +26,7 @@ applications:
       - title: "Server"
         directory: "C:/dev/workspace-orchestrator/sample-projects/sample-project-2"
         shell: "pwsh"
+        run_on_deploy: "echo 'Starting dev server...'"
       - title: "Test"
         directory: "C:/dev/workspace-orchestrator/sample-projects/sample-project-2"
         shell: "pwsh"
@@ -36,3 +38,13 @@ applications:
     window:
       monitor: 0
       position: { x: 960, y: 520, width: 960, height: 520 }
+
+  browser:
+    type: "edge"
+    profile: "sample-project-2"
+    urls:
+      - "http://localhost:8080"
+      - "https://github.com"
+    window:
+      monitor: 0
+      position: { x: 0, y: 0, width: 1920, height: 1080 }

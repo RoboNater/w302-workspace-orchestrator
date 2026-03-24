@@ -8,10 +8,11 @@ namespace WorkspaceOrchestrator.Core.Services;
 /// </summary>
 public class DeployService
 {
-    private readonly WindowManager      _wm;
+    private readonly WindowManager         _wm;
     private readonly VirtualDesktopService _vd;
-    private readonly TerminalLauncher   _tl;
-    private readonly StateManager       _state;
+    private readonly TerminalLauncher      _tl;
+    private readonly BrowserLauncher       _bl;
+    private readonly StateManager          _state;
 
     // VS Code executable path
     private static readonly string VsCodeExe = Path.Combine(
@@ -22,11 +23,13 @@ public class DeployService
         WindowManager wm,
         VirtualDesktopService vd,
         TerminalLauncher tl,
+        BrowserLauncher bl,
         StateManager state)
     {
         _wm    = wm;
         _vd    = vd;
         _tl    = tl;
+        _bl    = bl;
         _state = state;
     }
 
@@ -92,6 +95,16 @@ public class DeployService
                     {
                         var das = LaunchExplorer(app, name, targetDesktop);
                         deployedApps.AddRange(das);
+                    }
+                    break;
+
+                case "chrome":
+                case "edge":
+                    output.WriteLine($"{label} Launching {app.Type} browser ({appKey})...");
+                    if (!dryRun)
+                    {
+                        var da = LaunchBrowser(app, targetDesktop);
+                        deployedApps.Add(da);
                     }
                     break;
 
@@ -214,6 +227,25 @@ public class DeployService
             ProcessName  = TerminalLauncher.ProcessName,
             Hwnd         = (long)hwnd,
         };
+    }
+
+    private DeployedApp LaunchBrowser(AppConfig app, int targetDesktop)
+    {
+        try
+        {
+            return _bl.Launch(app, targetDesktop, _vd);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"  [WARN] Browser launch failed: {ex.Message}");
+            return new DeployedApp
+            {
+                Type         = app.Type,
+                ProcessName  = BrowserLauncher.GetProcessName(app.Type),
+                TitlePattern = ".*",
+                Hwnd         = 0,
+            };
+        }
     }
 
     private IEnumerable<DeployedApp> LaunchExplorer(AppConfig app, string projectName, int targetDesktop)

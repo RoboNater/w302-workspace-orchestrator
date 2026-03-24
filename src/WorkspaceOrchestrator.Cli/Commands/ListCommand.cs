@@ -1,4 +1,5 @@
 using System.CommandLine;
+using Spectre.Console;
 using WorkspaceOrchestrator.Core.Config;
 
 namespace WorkspaceOrchestrator.Cli.Commands;
@@ -13,34 +14,31 @@ public static class ListCommand
         {
             var projects = loader.ListProjects();
 
-            Console.WriteLine();
+            AnsiConsole.WriteLine();
             if (projects.Count == 0)
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("No project configs found.");
-                Console.ResetColor();
-                Console.WriteLine();
-                Console.WriteLine("Create a .workspace.yaml file in one of:");
+                AnsiConsole.MarkupLine("[yellow]No project configs found.[/]");
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine("Create a [bold].workspace.yaml[/] file in one of:");
                 foreach (var dir in ConfigLoader.GetSearchDirectories())
-                    Console.WriteLine($"  {dir}");
+                    AnsiConsole.MarkupLine($"  [dim]{Markup.Escape(dir)}[/]");
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine($"Available projects ({projects.Count}):");
-                Console.ResetColor();
-                Console.WriteLine();
+                var table = new Table()
+                    .Border(TableBorder.Rounded)
+                    .BorderColor(Color.Grey)
+                    .AddColumn(new TableColumn("[cyan]Project[/]"))
+                    .AddColumn(new TableColumn("[dim]Config Path[/]"));
+
                 foreach (var (name, path) in projects)
-                {
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.Write($"  {name,-30}");
-                    Console.ResetColor();
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine($"  {path}");
-                    Console.ResetColor();
-                }
+                    table.AddRow($"[bold]{Markup.Escape(name)}[/]", $"[dim]{Markup.Escape(path)}[/]");
+
+                AnsiConsole.Write(table);
+                AnsiConsole.MarkupLine($"[dim]{projects.Count} project(s) found.[/]");
             }
-            Console.WriteLine();
+
+            AnsiConsole.WriteLine();
         });
 
         return cmd;

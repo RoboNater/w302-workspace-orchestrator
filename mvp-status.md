@@ -13,6 +13,57 @@ Sprint 1 is complete: all core services and CLI commands are written and the sol
 
 ---
 
+## Sprint 2: Polish + Browser — ✅ COMPLETE (2026-03-23)
+
+### What Was Built
+
+| Task | File(s) | Status |
+|------|---------|--------|
+| Browser lifecycle (Chrome/Edge) | `Services/BrowserLauncher.cs` | ✅ Written |
+| DeployService browser integration | `Services/DeployService.cs` | ✅ Updated |
+| StowService HWND-first close | `Services/StowService.cs` | ✅ Updated |
+| WindowManager.CloseWindowByHwnd | `Services/WindowManager.cs` | ✅ Updated |
+| `ws edit <project>` command | `Commands/EditCommand.cs` | ✅ Written |
+| Tab completions (all commands) | `Commands/*.cs` | ✅ Updated |
+| Spectre.Console styled output | `Commands/*.cs` | ✅ Updated |
+| Spectre.Console spinner (deploy/stow) | `Commands/SpinnerWriter.cs` | ✅ Written |
+| Spectre.Console tables (list/status) | `Commands/ListCommand.cs`, `StatusCommand.cs` | ✅ Updated |
+| Browser validation in `ws validate` | `Commands/ValidateCommand.cs` | ✅ Updated |
+| Sample configs v2 (with browser) | `sample-project-*.workspace.yaml` (root + samples/) | ✅ Updated |
+
+### Smoke Tests — ✅ ALL PASSED
+
+- `ws --help` — all 7 commands listed with tab-completion hints inline
+- `ws list` — Spectre.Console rounded table; 3 projects shown
+- `ws validate sample-project-1` — browser section validated: Chrome found, profile + URLs shown
+- `ws deploy sample-project-1 --dry-run` — 6-step plan: VD + vscode + terminal + explorer + chrome + VD switch
+
+### Key Design Notes
+
+**BrowserLauncher strategy:**
+- Finds Chrome/Edge at well-known install paths (`ProgramFiles`, `ProgramFilesX86`, `LocalAppData`)
+- Launches with `--profile-directory=<name>` arg; Chrome auto-creates the profile on first launch
+- Snapshots existing browser windows before launch, polls for new HWND (20s timeout)
+- HWND stored in journal as primary stow key; TitlePattern=".*" as fallback if HWND goes stale
+
+**HWND-first stow:**
+- `StowService` detects `chrome`/`edge` app types → uses `WindowManager.CloseWindowByHwnd` first
+- Falls back to pattern match if HWND is stale (browser restarted since deploy)
+
+**Tab completions:**
+- System.CommandLine `AddCompletions()` on all project-name arguments
+- Completions read from `ConfigLoader.ListProjects()` at invocation time
+- Visible in `--help` output and shell tab-completion (when registered with `dotnet-suggest`)
+
+**Spectre.Console spinner routing:**
+- `SpinnerWriter : TextWriter` routes service step messages to `StatusContext.Status()`
+- Non-dry-run deploy/stow show spinner; dry-run shows step-by-step to stdout
+- List/Status use `Spectre.Console.Table` with rounded borders
+
+**Note:** Spectre.Console wraps long lines when output is redirected to a file/pipe (no TTY). In a real terminal with auto-detected width, all lines render on one line correctly.
+
+---
+
 ## Sprint 1: Core Foundation — ✅ COMPLETE
 
 ### What Was Built
@@ -235,14 +286,19 @@ pwsh -File .\test\Test-DeployStow.ps1
    If two projects share a folder name (rare), stow could close the wrong explorer window.
    Phase 3 improvement: use HWND from journal for first-pass attempt.
 
-### Next Sprint: Sprint 2 (P2.2 + P2.4 polish)
+### Next Sprint: Sprint 3 (P2.5 — Global Hotkeys)
 
-1. Verify Sprint 1 build passes and smoke tests pass
-2. `BrowserLauncher.cs` — Chrome/Edge profile lifecycle
-3. Tab completion for project names (System.CommandLine supports this natively)
-4. `ws edit <project>` — open config in VS Code
-5. Add `Spectre.Console` progress spinners for deploy/stow steps
-6. Update `sample-project-1.workspace.yaml` in root (not just samples/) to v2 schema
+1. `HotkeyService.cs` — `RegisterHotKey`/`UnregisterHotKey` Win32 P/Invoke
+2. Background listener thread that calls deploy/switch on keypress
+3. `ws hotkeys start/stop` commands
+4. Read hotkey assignments from project configs (`hotkey: "Ctrl+Alt+1"`)
+
+### Backlog
+
+- Live integration test: `ws deploy sample-project-1` → real windows open + positioned
+- Multi-project isolation test: deploy project-1 + project-2 on different VDs simultaneously
+- Consider: `ws stow` with no arg to stow all deployed (currently shows help message)
+- Consider: `ws snapshot` — capture current window positions to state.json
 
 ### Stretch: Sprint 3 (P2.5 — Global Hotkeys)
 
@@ -260,8 +316,12 @@ pwsh -File .\test\Test-DeployStow.ps1
 | `ws deploy <project>` works | ✅ Smoke-tested (--dry-run), needs live integration test |
 | `ws stow <project>` only closes that project's windows | 🔄 Needs live integration test |
 | `ws switch` performs atomic stow+deploy | 🔄 Needs live integration test |
-| `ws list` and `ws status` display correctly | ✅ Verified |
+| `ws list` and `ws status` display correctly | ✅ Verified (Spectre.Console tables) |
 | Two projects deployed simultaneously on different VDs | 🔄 Needs live integration test |
 | Deploy journal handles "already deployed" case | ✅ StateManager.RecordDeploy is idempotent |
 | All Phase 1 tests still pass | ✅ PS scripts untouched |
 | Binary publishable as self-contained `ws.exe` | ✅ install.ps1 written |
+| Browser (Chrome/Edge) profile launch + stow | ✅ BrowserLauncher written, validated |
+| Tab completion for project names | ✅ All project-arg commands |
+| `ws edit <project>` opens config in VS Code | ✅ EditCommand written |
+| Spectre.Console styled output + spinners | ✅ All commands updated |

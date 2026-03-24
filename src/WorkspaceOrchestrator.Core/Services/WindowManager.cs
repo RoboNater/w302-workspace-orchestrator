@@ -95,6 +95,17 @@ public class WindowManager
     }
 
     /// <summary>
+    /// Close a specific window by HWND if it is still visible.
+    /// Returns true if the window was found and a close was sent; false if the HWND was stale.
+    /// </summary>
+    public bool CloseWindowByHwnd(nint hwnd, int gracePeriodMs = 800)
+    {
+        if (!Win32.IsWindowVisible(hwnd)) return false;
+        CloseWindow(hwnd, gracePeriodMs);
+        return true;
+    }
+
+    /// <summary>
     /// Close all windows matching the given criteria.
     /// Returns the number of windows closed.
     /// </summary>

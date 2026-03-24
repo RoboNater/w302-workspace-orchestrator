@@ -1,4 +1,5 @@
 using System.CommandLine;
+using Spectre.Console;
 using WorkspaceOrchestrator.Core.Config;
 using WorkspaceOrchestrator.Core.Services;
 
@@ -14,6 +15,7 @@ public static class StowCommand
     {
         var projectArg = new Argument<string?>("project", () => null,
             "Project name to stow (omit to stow all deployed projects)");
+        projectArg.AddCompletions(ctx => loader.ListProjects().Select(p => p.Name));
 
         var cmd = new Command("stow", "Stow a project context: close all project windows")
         {
@@ -24,48 +26,44 @@ public static class StowCommand
         {
             try
             {
-                // Resolve project name
-                string? name = project;
-                if (name is null)
+                if (project is null)
                 {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("No project specified. Use 'ws status' to see deployed projects.");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine("[yellow]No project specified.[/] Use 'ws status' to see deployed projects.");
                     return;
                 }
 
-                // Accept project name with or without .workspace.yaml extension
-                name = name.Replace(".workspace.yaml", "");
+                string name = project.Replace(".workspace.yaml", "");
 
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine();
-                Console.WriteLine($"Stowing: {name}");
-                Console.ResetColor();
-                Console.WriteLine();
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine($"[cyan]Stowing:[/] [bold]{name}[/]");
+                AnsiConsole.WriteLine();
 
                 if (dryRun)
                 {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("[DRY RUN] No changes will be made.");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine("[yellow][[DRY RUN]][/] No changes will be made.");
+                    int dryCount = stowService.Stow(name, Console.Out, dryRun: true);
+                    AnsiConsole.WriteLine();
+                    AnsiConsole.MarkupLine($"[yellow]Dry run complete:[/] {name} — no changes made");
+                }
+                else
+                {
+                    AnsiConsole.Status()
+                        .Spinner(Spinner.Known.Dots)
+                        .SpinnerStyle(Style.Parse("cyan"))
+                        .Start($"Stowing {name}...", ctx =>
+                        {
+                            stowService.Stow(name, new SpinnerWriter(ctx), dryRun: false);
+                        });
+
+                    AnsiConsole.MarkupLine($"[green]✓ Stow complete:[/] [bold]{name}[/]");
                 }
 
-                int closed = stowService.Stow(name, Console.Out, dryRun);
-
-                Console.WriteLine();
-                Console.ForegroundColor = dryRun ? ConsoleColor.Yellow : ConsoleColor.Green;
-                Console.WriteLine(dryRun
-                    ? $"[Dry run complete] {name} — no changes made"
-                    : $"Stow complete: {name} ({closed} window(s) closed)");
-                Console.ResetColor();
-                Console.WriteLine();
+                AnsiConsole.WriteLine();
             }
             catch (Exception ex)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Error.WriteLine($"Error: {ex.Message}");
-                Console.ResetColor();
-                if (verbose) Console.Error.WriteLine(ex.StackTrace);
+                AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+                if (verbose) AnsiConsole.WriteException(ex);
                 Environment.Exit(1);
             }
         }, projectArg, dryRunOption, verboseOption);

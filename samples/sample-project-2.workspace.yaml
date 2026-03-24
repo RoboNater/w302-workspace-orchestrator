@@ -38,3 +38,13 @@ applications:
     window:
       monitor: 0
       position: { x: 960, y: 520, width: 960, height: 520 }
+
+  browser:
+    type: "edge"
+    profile: "sample-project-2"
+    urls:
+      - "http://localhost:8080"
+      - "https://github.com"
+    window:
+      monitor: 0
+      position: { x: 0, y: 0, width: 1920, height: 1080 }

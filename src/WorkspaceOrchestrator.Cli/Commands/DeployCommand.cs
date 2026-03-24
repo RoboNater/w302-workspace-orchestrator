@@ -1,4 +1,6 @@
 using System.CommandLine;
+using System.Text;
+using Spectre.Console;
 using WorkspaceOrchestrator.Core.Config;
 using WorkspaceOrchestrator.Core.Services;
 
@@ -13,6 +15,8 @@ public static class DeployCommand
         Option<bool> verboseOption)
     {
         var projectArg = new Argument<string>("project", "Project name (matches <project>.workspace.yaml)");
+        projectArg.AddCompletions(ctx => loader.ListProjects().Select(p => p.Name));
+
         var cmd = new Command("deploy", "Deploy a project context: launch apps, position windows, assign to virtual desktop")
         {
             projectArg
@@ -25,46 +29,49 @@ public static class DeployCommand
                 string? configPath = loader.FindConfigPath(project);
                 if (configPath is null)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Error.WriteLine($"Error: No config found for project '{project}'.");
-                    Console.ResetColor();
-                    Console.Error.WriteLine($"  Searched: {string.Join(", ", ConfigLoader.GetSearchDirectories())}");
+                    AnsiConsole.MarkupLine($"[red]Error:[/] No config found for project '[bold]{project}[/]'.");
+                    AnsiConsole.MarkupLine($"  Searched: {string.Join(", ", ConfigLoader.GetSearchDirectories())}");
                     Environment.Exit(1);
                     return;
                 }
 
                 var config = loader.LoadConfig(configPath);
 
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine();
-                Console.WriteLine($"Deploying: {config.Meta.Name}");
-                Console.ResetColor();
-                if (verbose) Console.WriteLine($"Config:    {configPath}");
-                Console.WriteLine();
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine($"[cyan]Deploying:[/] [bold]{config.Meta.Name}[/]");
+                if (verbose) AnsiConsole.MarkupLine($"[dim]Config:   {configPath}[/]");
+                AnsiConsole.WriteLine();
 
                 if (dryRun)
+                    AnsiConsole.MarkupLine("[yellow][[DRY RUN]][/] No changes will be made.");
+
+                // Route step messages through a spinner (non-dry-run) or stdout (dry-run)
+                if (!dryRun)
                 {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("[DRY RUN] No changes will be made.");
-                    Console.ResetColor();
+                    AnsiConsole.Status()
+                        .Spinner(Spinner.Known.Dots)
+                        .SpinnerStyle(Style.Parse("cyan"))
+                        .Start($"Deploying {config.Meta.Name}...", ctx =>
+                        {
+                            var writer = new SpinnerWriter(ctx);
+                            deployService.Deploy(config, configPath, writer, dryRun: false);
+                        });
+                }
+                else
+                {
+                    deployService.Deploy(config, configPath, Console.Out, dryRun: true);
                 }
 
-                var record = deployService.Deploy(config, configPath, Console.Out, dryRun);
-
-                Console.WriteLine();
-                Console.ForegroundColor = dryRun ? ConsoleColor.Yellow : ConsoleColor.Green;
-                Console.WriteLine(dryRun
-                    ? $"[Dry run complete] {config.Meta.Name} — no changes made"
-                    : $"Deploy complete: {config.Meta.Name}");
-                Console.ResetColor();
-                Console.WriteLine();
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine(dryRun
+                    ? $"[yellow]Dry run complete:[/] {config.Meta.Name} — no changes made"
+                    : $"[green]✓ Deploy complete:[/] [bold]{config.Meta.Name}[/]");
+                AnsiConsole.WriteLine();
             }
             catch (Exception ex)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Error.WriteLine($"Error: {ex.Message}");
-                Console.ResetColor();
-                if (verbose) Console.Error.WriteLine(ex.StackTrace);
+                AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+                if (verbose) AnsiConsole.WriteException(ex);
                 Environment.Exit(1);
             }
         }, projectArg, dryRunOption, verboseOption);
