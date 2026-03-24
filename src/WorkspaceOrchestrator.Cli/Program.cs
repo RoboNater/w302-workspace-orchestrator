@@ -13,8 +13,9 @@ var windowManager    = new WindowManager();
 var vdService        = new VirtualDesktopService();
 var terminalLauncher = new TerminalLauncher();
 var browserLauncher  = new BrowserLauncher(windowManager);
+var snapshotService  = new SnapshotService(windowManager, stateManager);
 var deployService    = new DeployService(windowManager, vdService, terminalLauncher, browserLauncher, stateManager);
-var stowService      = new StowService(windowManager, stateManager);
+var stowService      = new StowService(windowManager, stateManager, snapshotService);
 
 // Root command
 var root = new RootCommand("ws — Workspace Orchestrator: deploy/stow project contexts on Windows 11");
@@ -34,5 +35,6 @@ root.AddCommand(StatusCommand.Build(stateManager));
 root.AddCommand(ValidateCommand.Build(configLoader));
 root.AddCommand(EditCommand.Build(configLoader));
 root.AddCommand(HotkeysCommand.Build(configLoader, deployService, stowService, stateManager));
+root.AddCommand(SnapshotCommand.Build(configLoader, stateManager, snapshotService));
 
 return await root.InvokeAsync(args);

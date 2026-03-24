@@ -9,13 +9,15 @@ namespace WorkspaceOrchestrator.Core.Services;
 /// </summary>
 public class StowService
 {
-    private readonly WindowManager _wm;
-    private readonly StateManager  _state;
+    private readonly WindowManager   _wm;
+    private readonly StateManager    _state;
+    private readonly SnapshotService _snapshot;
 
-    public StowService(WindowManager wm, StateManager state)
+    public StowService(WindowManager wm, StateManager state, SnapshotService snapshot)
     {
-        _wm    = wm;
-        _state = state;
+        _wm       = wm;
+        _state    = state;
+        _snapshot = snapshot;
     }
 
     /// <summary>
@@ -46,6 +48,17 @@ public class StowService
 
     private int StowFromRecord(DeployedProject record, TextWriter output, bool dryRun)
     {
+        // Capture window positions before closing so the next deploy can restore the layout.
+        if (!dryRun)
+        {
+            var snap = _snapshot.Capture(record.Project, output);
+            if (snap is not null)
+            {
+                _state.SaveSnapshot(snap);
+                output.WriteLine($"  Snapshot saved ({snap.Apps.Count} window(s)).");
+            }
+        }
+
         int closed = 0;
 
         foreach (var app in record.Apps)

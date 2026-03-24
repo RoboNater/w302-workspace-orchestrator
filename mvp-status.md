@@ -13,6 +13,61 @@ Sprint 1 is complete: all core services and CLI commands are written and the sol
 
 ---
 
+## Sprint 4: Window State Snapshots — ✅ COMPLETE (2026-03-23)
+
+### What Was Built
+
+| Task | File(s) | Status |
+|------|---------|--------|
+| WindowSnapshot model | `Models/WindowSnapshot.cs` | ✅ Written |
+| Snapshot persistence | `Config/StateManager.cs` | ✅ Updated |
+| SnapshotService | `Services/SnapshotService.cs` | ✅ Written |
+| Auto-capture on stow | `Services/StowService.cs` | ✅ Updated |
+| Snapshot positions in deploy | `Services/DeployService.cs` | ✅ Updated |
+| `ws snapshot` command | `Commands/SnapshotCommand.cs` | ✅ Written |
+| Program.cs wiring | `Program.cs` | ✅ Updated |
+
+### Smoke Tests — ✅ ALL PASSED
+
+- `ws --help` — `snapshot` command listed (9 commands total)
+- `ws snapshot --help` — `[project]`, `--list`, `--delete` options shown
+- `ws snapshot` (no deployed projects) — "No projects currently deployed. Deploy a project first..."
+- `ws snapshot --list` (no snapshots) — "No snapshots saved yet."
+- **Build:** `Build succeeded. 0 Warning(s). 0 Error(s).`
+
+### Key Design Notes
+
+**Snapshot lifecycle:**
+- Snapshots captured automatically on `ws stow` (before windows close)
+- Snapshots also capturable on-demand via `ws snapshot [project]`
+- Stored at `~/.workspaces/snapshots/<project>.json` (one file per project)
+- On next `ws deploy`, snapshot positions replace config positions for matching app types
+
+**SnapshotService.Capture() strategy:**
+- Iterates deploy journal record for the project
+- For each app: tries HWND lookup first (fast), falls back to title-pattern regex match
+- Windows that have been closed are logged as `[SKIP]` and excluded from snapshot
+- Returns `null` if project not in deploy journal
+
+**DeployService snapshot position resolution:**
+- `SnapshotPosition(appType, snapshot?)` returns `WindowPosition?` for a given app type
+- `null` returned when: no snapshot exists, or app type not in snapshot
+- Per-app preference: `snapshotPosition ?? configPosition`
+- Progress output notes when snapshot position is used vs. config position
+
+**`ws snapshot` command options:**
+- `ws snapshot` — snapshot all deployed projects
+- `ws snapshot <project>` — snapshot one specific project
+- `ws snapshot --list` — show all saved snapshots in a table (project, age, window count)
+- `ws snapshot --delete <project>` — remove a saved snapshot
+
+**Snapshot matching by type:**
+- Simple first-match-by-type strategy (e.g., `"vscode"`, `"terminal"`, `"explorer"`)
+- If multiple apps of the same type are deployed (uncommon), the first snapshot entry wins
+- Phase 3 improvement: match by YAML app key for fine-grained multi-instance support
+
+---
+
 ## Sprint 3: Global Hotkeys — ✅ COMPLETE (2026-03-23)
 
 ### What Was Built
@@ -336,12 +391,16 @@ pwsh -File .\test\Test-DeployStow.ps1
    If two projects share a folder name (rare), stow could close the wrong explorer window.
    Phase 3 improvement: use HWND from journal for first-pass attempt.
 
-### Next Sprint: Sprint 4 (P2.3 — Window State Snapshots, stretch goal)
+### Sprint 4 Complete
 
-1. `SnapshotService.cs` — capture current window positions on stow
-2. Persist snapshot alongside state.json
-3. `ws snapshot [project]` command
-4. Deploy prefers snapshot positions if available
+All Sprint 4 tasks delivered. See Sprint 4 section above for full details.
+
+### Next Steps / Phase 3 Candidates
+
+- Live integration test: `ws deploy sample-project-1` → real windows open + positioned correctly
+- Snapshot matching by YAML app key (for multi-instance same-type support)
+- Replace PowerShell VD bridge with direct COM interop (Phase 3)
+- Promote hotkey daemon to a Windows Service or system-tray app (Phase 3)
 
 ### Backlog
 
@@ -372,3 +431,6 @@ pwsh -File .\test\Test-DeployStow.ps1
 | `ws hotkeys start` registers Win32 hotkeys + message loop | ✅ HotkeyService written |
 | `ws hotkeys stop` kills daemon via PID file | ✅ HotkeysCommand written |
 | Hotkey string parser (Ctrl+Alt+1 → modifiers+vk) | ✅ Handles A–Z, 0–9, F1–F24, named keys |
+| Window positions captured on stow (auto-snapshot) | ✅ SnapshotService + StowService |
+| Deploy restores last-known layout from snapshot | ✅ DeployService snapshot lookup |
+| `ws snapshot` command (capture/list/delete) | ✅ SnapshotCommand written |

@@ -48,6 +48,11 @@ public class DeployService
             ? config.VirtualDesktops.Primary - 1
             : -1;
 
+        // Load snapshot so we can restore the last-known window positions
+        var snapshot = _state.LoadSnapshot(name);
+        if (snapshot is not null)
+            output.WriteLine($"  Found saved snapshot ({snapshot.Apps.Count} positions) — will prefer snapshot layout.");
+
         var deployedApps = new List<DeployedApp>();
 
         // Step 1: Ensure virtual desktops exist
@@ -73,7 +78,10 @@ public class DeployService
                     output.WriteLine($"{label} Launching VS Code ({appKey})...");
                     if (!dryRun)
                     {
-                        var da = LaunchVsCode(app, name, targetDesktop);
+                        var pos = SnapshotPosition("vscode", snapshot) ?? app.Window?.Position;
+                        if (snapshot is not null && pos != app.Window?.Position)
+                            output.WriteLine($"       Using snapshot position: [{pos!.X},{pos.Y}] {pos.Width}x{pos.Height}");
+                        var da = LaunchVsCode(app, name, targetDesktop, pos);
                         deployedApps.Add(da);
                     }
                     break;
@@ -83,7 +91,10 @@ public class DeployService
                     output.WriteLine($"{label} Launching Windows Terminal ({appKey})...");
                     if (!dryRun)
                     {
-                        var da = LaunchTerminal(app, name, targetDesktop);
+                        var pos = SnapshotPosition("terminal", snapshot) ?? app.Window?.Position;
+                        if (snapshot is not null && pos != app.Window?.Position)
+                            output.WriteLine($"       Using snapshot position: [{pos!.X},{pos.Y}] {pos.Width}x{pos.Height}");
+                        var da = LaunchTerminal(app, name, targetDesktop, pos);
                         deployedApps.Add(da);
                     }
                     break;
@@ -93,7 +104,10 @@ public class DeployService
                     output.WriteLine($"{label} Launching File Explorer ({appKey})...");
                     if (!dryRun)
                     {
-                        var das = LaunchExplorer(app, name, targetDesktop);
+                        var pos = SnapshotPosition("explorer", snapshot) ?? app.Window?.Position;
+                        if (snapshot is not null && pos != app.Window?.Position)
+                            output.WriteLine($"       Using snapshot position: [{pos!.X},{pos.Y}] {pos.Width}x{pos.Height}");
+                        var das = LaunchExplorer(app, name, targetDesktop, pos);
                         deployedApps.AddRange(das);
                     }
                     break;
@@ -103,7 +117,10 @@ public class DeployService
                     output.WriteLine($"{label} Launching {app.Type} browser ({appKey})...");
                     if (!dryRun)
                     {
-                        var da = LaunchBrowser(app, targetDesktop);
+                        var pos = SnapshotPosition(app.Type, snapshot) ?? app.Window?.Position;
+                        if (snapshot is not null && pos != app.Window?.Position)
+                            output.WriteLine($"       Using snapshot position: [{pos!.X},{pos.Y}] {pos.Width}x{pos.Height}");
+                        var da = LaunchBrowser(app, targetDesktop, pos);
                         deployedApps.Add(da);
                     }
                     break;
@@ -135,10 +152,24 @@ public class DeployService
         return record;
     }
 
-    private DeployedApp LaunchVsCode(AppConfig app, string projectName, int targetDesktop)
+    /// <summary>
+    /// Look up a saved snapshot position for an app type.
+    /// Returns null if no snapshot exists or the app type isn't in it.
+    /// </summary>
+    private static WindowPosition? SnapshotPosition(string appType, WindowSnapshot? snapshot)
+    {
+        if (snapshot is null) return null;
+        var entry = snapshot.Apps.FirstOrDefault(a =>
+            string.Equals(a.Type, appType, StringComparison.OrdinalIgnoreCase));
+        if (entry is null) return null;
+        return new WindowPosition { X = entry.X, Y = entry.Y, Width = entry.Width, Height = entry.Height };
+    }
+
+    private DeployedApp LaunchVsCode(AppConfig app, string projectName, int targetDesktop,
+        WindowPosition? posOverride = null)
     {
         string? workspace = app.Workspace?.Replace('/', '\\');
-        var pos = app.Window?.Position;
+        var pos = posOverride ?? app.Window?.Position;
 
         nint hwnd = 0;
         try
@@ -185,9 +216,10 @@ public class DeployService
         };
     }
 
-    private DeployedApp LaunchTerminal(AppConfig app, string projectName, int targetDesktop)
+    private DeployedApp LaunchTerminal(AppConfig app, string projectName, int targetDesktop,
+        WindowPosition? posOverride = null)
     {
-        var pos = app.Window?.Position;
+        var pos = posOverride ?? app.Window?.Position;
         nint hwnd = 0;
 
         try
@@ -229,11 +261,25 @@ public class DeployService
         };
     }
 
-    private DeployedApp LaunchBrowser(AppConfig app, int targetDesktop)
+    private DeployedApp LaunchBrowser(AppConfig app, int targetDesktop,
+        WindowPosition? posOverride = null)
     {
+        // Apply snapshot position override to the app config before launching
+        AppConfig effectiveApp = app;
+        if (posOverride is not null && app.Window is not null)
+        {
+            effectiveApp = new AppConfig
+            {
+                Type    = app.Type,
+                Profile = app.Profile,
+                Urls    = app.Urls,
+                Window  = new WindowConfig { Monitor = app.Window.Monitor, Position = posOverride },
+            };
+        }
+
         try
         {
-            return _bl.Launch(app, targetDesktop, _vd);
+            return _bl.Launch(effectiveApp, targetDesktop, _vd);
         }
         catch (Exception ex)
         {
@@ -248,9 +294,10 @@ public class DeployService
         }
     }
 
-    private IEnumerable<DeployedApp> LaunchExplorer(AppConfig app, string projectName, int targetDesktop)
+    private IEnumerable<DeployedApp> LaunchExplorer(AppConfig app, string projectName, int targetDesktop,
+        WindowPosition? posOverride = null)
     {
-        var pos = app.Window?.Position;
+        var pos = posOverride ?? app.Window?.Position;
 
         foreach (var rawPath in app.Paths)
         {
