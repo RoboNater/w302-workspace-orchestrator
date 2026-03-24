@@ -79,3 +79,9 @@ Done:
 ```
 Read workspace-orchestrator-plan.md, phase-2-plan.md, and mvp-status.md to get context, then begin Phase 2 Sprint 4 "Window State Snapshots". Execute the tasks per the plan, documenting task status as well as any findings or recommendations in the mvp-status.md markdown file as you go.  At the end of sprint, commit your work to git.
 ```
+
+Next:
+2026-03-23 Evaluate MVP Status and Create Usage Guide
+```
+Read workspace-orchestrator-spec.md, workspace-orchestrator-plan.md, phase-2-plan.md, and mvp-status.md to get context, then evaluate the current state of the MVP against the spec and plans. Summarize any outstanding tasks/todos, user-required tests, findings/recommendations/etc to a new markdown file mvp-evaluation-and-next-steps.md.  Then create a new markdown file mvp-usage-guide.md with instructions on how to use the MVP to work with the sample projects. Also include a section on creating a new project from scratch, and some thoughts on how the information in the workspace.yaml files could be more efficiently or automatically populated with some additional capabilities in Phase 3.  At the end of these tasks, commit your work to git.
+```
