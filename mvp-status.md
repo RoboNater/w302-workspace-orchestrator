@@ -13,6 +13,56 @@ Sprint 1 is complete: all core services and CLI commands are written and the sol
 
 ---
 
+## Sprint 3: Global Hotkeys — ✅ COMPLETE (2026-03-23)
+
+### What Was Built
+
+| Task | File(s) | Status |
+|------|---------|--------|
+| Win32 hotkey P/Invoke | `Interop/Win32.cs` | ✅ Updated |
+| HotkeyService (message loop) | `Services/HotkeyService.cs` | ✅ Written |
+| `ws hotkeys list/start/stop` | `Commands/HotkeysCommand.cs` | ✅ Written |
+| Program.cs wiring | `Program.cs` | ✅ Updated |
+
+### Smoke Tests — ✅ ALL PASSED
+
+- `ws --help` — `hotkeys` command listed (8 commands total)
+- `ws hotkeys --help` — `list`, `start`, `stop` subcommands shown
+- `ws hotkeys list` — Spectre.Console table: `sample-project-1 → Ctrl+Alt+1`, `sample-project-2 → Ctrl+Alt+2`
+- `ws hotkeys stop` (no daemon) — "No hotkey daemon appears to be running. (PID file not found)"
+- **Build:** `Build succeeded. 0 Warning(s). 0 Error(s).`
+
+### Key Design Notes
+
+**HotkeyService architecture:**
+- `RegisterHotKey(hWnd=0, id, modifiers, vk)` — registers hotkey on the current thread's message queue
+- `Run()` blocks in a Win32 `GetMessage` loop; fires `HotkeyPressed` event on each `WM_HOTKEY`
+- `Stop()` posts `WM_QUIT` to the owner thread via `PostThreadMessage` — thread-safe from any context
+- `Dispose()` calls `Stop()` — safe to use in a `using` block
+
+**Hotkey string parser (`"Ctrl+Alt+1"` → modifiers + vk):**
+- Tokens split by `+`; modifier tokens: `Ctrl`/`Control`, `Alt`, `Shift`, `Win`
+- Key tokens: letters A–Z, digits 0–9, function keys F1–F24, named keys (Space, Enter, Esc, arrows, etc.)
+- `MOD_NOREPEAT` always added — prevents key-repeat flooding on long holds
+- Invalid key tokens throw `ArgumentException`; displayed in `ws hotkeys list` as `[invalid: ...]`
+
+**`ws hotkeys start` daemon pattern:**
+- Writes `~/.workspaces/hotkeys.pid` (current PID) before entering message loop
+- On hotkey fire: stows all other deployed projects → deploys target project
+- `Ctrl+C` → cancels default kill, calls `svc.Stop()` → WM_QUIT → clean exit
+- PID file deleted on clean exit
+
+**`ws hotkeys stop`:**
+- Reads PID from `~/.workspaces/hotkeys.pid`; calls `Process.Kill()` on that PID
+- Handles "process not found" (daemon already exited) gracefully
+
+**Blocking daemon trade-off:**
+- `ws hotkeys start` blocks the terminal window for the lifetime of the daemon
+- Recommended use: run in a dedicated background terminal or a Windows Terminal pane
+- Phase 3 option: promote to a true Windows Service or a system-tray app (background process)
+
+---
+
 ## Sprint 2: Polish + Browser — ✅ COMPLETE (2026-03-23)
 
 ### What Was Built
@@ -286,12 +336,12 @@ pwsh -File .\test\Test-DeployStow.ps1
    If two projects share a folder name (rare), stow could close the wrong explorer window.
    Phase 3 improvement: use HWND from journal for first-pass attempt.
 
-### Next Sprint: Sprint 3 (P2.5 — Global Hotkeys)
+### Next Sprint: Sprint 4 (P2.3 — Window State Snapshots, stretch goal)
 
-1. `HotkeyService.cs` — `RegisterHotKey`/`UnregisterHotKey` Win32 P/Invoke
-2. Background listener thread that calls deploy/switch on keypress
-3. `ws hotkeys start/stop` commands
-4. Read hotkey assignments from project configs (`hotkey: "Ctrl+Alt+1"`)
+1. `SnapshotService.cs` — capture current window positions on stow
+2. Persist snapshot alongside state.json
+3. `ws snapshot [project]` command
+4. Deploy prefers snapshot positions if available
 
 ### Backlog
 
@@ -299,13 +349,6 @@ pwsh -File .\test\Test-DeployStow.ps1
 - Multi-project isolation test: deploy project-1 + project-2 on different VDs simultaneously
 - Consider: `ws stow` with no arg to stow all deployed (currently shows help message)
 - Consider: `ws snapshot` — capture current window positions to state.json
-
-### Stretch: Sprint 3 (P2.5 — Global Hotkeys)
-
-1. `HotkeyService.cs` — `RegisterHotKey`/`UnregisterHotKey` Win32 P/Invoke
-2. Background listener thread that calls deploy/switch commands
-3. `ws hotkeys start/stop` commands
-4. Read hotkey assignments from project configs
 
 ---
 
@@ -325,3 +368,7 @@ pwsh -File .\test\Test-DeployStow.ps1
 | Tab completion for project names | ✅ All project-arg commands |
 | `ws edit <project>` opens config in VS Code | ✅ EditCommand written |
 | Spectre.Console styled output + spinners | ✅ All commands updated |
+| `ws hotkeys list` shows per-project hotkeys | ✅ Spectre.Console table |
+| `ws hotkeys start` registers Win32 hotkeys + message loop | ✅ HotkeyService written |
+| `ws hotkeys stop` kills daemon via PID file | ✅ HotkeysCommand written |
+| Hotkey string parser (Ctrl+Alt+1 → modifiers+vk) | ✅ Handles A–Z, 0–9, F1–F24, named keys |

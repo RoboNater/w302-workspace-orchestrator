@@ -53,6 +53,50 @@ internal static class Win32
 
     // Messages
     public const uint WM_CLOSE         = 0x0010;
+    public const uint WM_QUIT          = 0x0012;
+    public const uint WM_HOTKEY        = 0x0312;
+
+    // RegisterHotKey modifier flags
+    public const uint MOD_ALT          = 0x0001;
+    public const uint MOD_CONTROL      = 0x0002;
+    public const uint MOD_SHIFT        = 0x0004;
+    public const uint MOD_WIN          = 0x0008;
+    public const uint MOD_NOREPEAT     = 0x4000;
+
+    // Global hotkey registration
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool RegisterHotKey(nint hWnd, int id, uint fsModifiers, uint vk);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool UnregisterHotKey(nint hWnd, int id);
+
+    // Win32 message loop
+    [DllImport("user32.dll")]
+    public static extern int GetMessage(out MSG lpMsg, nint hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
+
+    [DllImport("user32.dll")]
+    public static extern bool TranslateMessage(ref MSG lpMsg);
+
+    [DllImport("user32.dll")]
+    public static extern nint DispatchMessage(ref MSG lpMsg);
+
+    [DllImport("user32.dll")]
+    public static extern bool PostThreadMessage(uint idThread, uint Msg, nint wParam, nint lParam);
+
+    [DllImport("kernel32.dll")]
+    public static extern uint GetCurrentThreadId();
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MSG
+    {
+        public nint hwnd;
+        public uint message;
+        public nint wParam;
+        public nint lParam;
+        public uint time;
+        public int  ptX;
+        public int  ptY;
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT

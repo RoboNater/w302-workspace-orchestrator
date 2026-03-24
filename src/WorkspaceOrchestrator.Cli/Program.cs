@@ -33,5 +33,6 @@ root.AddCommand(ListCommand.Build(configLoader));
 root.AddCommand(StatusCommand.Build(stateManager));
 root.AddCommand(ValidateCommand.Build(configLoader));
 root.AddCommand(EditCommand.Build(configLoader));
+root.AddCommand(HotkeysCommand.Build(configLoader, deployService, stowService, stateManager));
 
 return await root.InvokeAsync(args);
