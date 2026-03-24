@@ -1,3 +1,10 @@
+# .NET build artifacts
+src/**/bin/
+src/**/obj/
+
+# Temp output files
+tmp_out.txt
+
 # State files (machine-specific)
 .state/
 

@@ -1,0 +1,40 @@
+# Sample Project 2 — Web Server (Phase 2 schema v2)
+version: 2
+meta:
+  name: "sample-project-2"
+  description: "Web server project - Node.js REST API"
+
+virtual_desktops:
+  primary: 3
+
+hotkey: "Ctrl+Alt+2"
+
+applications:
+  vscode:
+    type: "vscode"
+    workspace: "C:/dev/workspace-orchestrator/sample-projects/sample-project-2"
+    window:
+      monitor: 0
+      position: { x: 0, y: 0, width: 960, height: 1040 }
+
+  terminals:
+    type: "windows-terminal"
+    window:
+      monitor: 0
+      position: { x: 960, y: 0, width: 960, height: 520 }
+    tabs:
+      - title: "Dev Server"
+        directory: "C:/dev/workspace-orchestrator/sample-projects/sample-project-2"
+        shell: "pwsh"
+        run_on_deploy: "echo 'Starting dev server...'"
+      - title: "Git"
+        directory: "C:/dev/workspace-orchestrator/sample-projects/sample-project-2"
+        shell: "pwsh"
+
+  explorer:
+    type: "file-explorer"
+    paths:
+      - "C:/dev/workspace-orchestrator/sample-projects/sample-project-2"
+    window:
+      monitor: 0
+      position: { x: 960, y: 520, width: 960, height: 520 }
