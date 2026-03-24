@@ -117,6 +117,25 @@ The codebase is well-structured with clear separation of concerns:
 3. **No unit tests:** The plan mentions a `WorkspaceOrchestrator.Tests` project for Sprint 2 — this was not created. All testing is manual smoke tests.
 4. **`StowByConvention` VS Code pattern:** The fallback pattern `"Visual Studio Code"` matches ANY VS Code window, not just the project's. This is a known limitation of convention-based stow.
 
+### Multi-Monitor Support: Not Functional
+
+The YAML schema includes a `monitor` field in `WindowConfig` (e.g., `monitor: 0`, `monitor: 1`), and the field is parsed and stored in the model, but **no code reads it**. Specifically:
+
+- `DeployService` passes `position.X, position.Y, position.Width, position.Height` directly to `WindowManager.PositionWindow()` → `SetWindowPos()`, completely ignoring the `monitor` value.
+- No monitor enumeration APIs (`EnumDisplayMonitors`, `GetMonitorInfo`, `MonitorFromWindow`) are declared in `Win32.cs` or called anywhere in the codebase.
+- `SetWindowPos` uses the unified virtual screen coordinate space, so multi-monitor *technically works* if the user hardcodes absolute coordinates that account for monitor offsets (e.g., `{ x: 1920, y: 0, ... }` for a second monitor to the right of a 1920-wide primary). But the `monitor: N` field is a silent no-op.
+- Snapshot capture records absolute coordinates but does not record which monitor a window is on.
+
+**Impact:** Users with multi-monitor setups can work around this by using absolute screen coordinates in their configs, but the `monitor` field is misleading — it suggests monitor-relative positioning that doesn't exist.
+
+**Recommendation:** Before Phase 3's full monitor profile system (P3.2), a lighter fix would make multi-monitor usable:
+1. Add `EnumDisplayMonitors` / `GetMonitorInfo` P/Invoke declarations to `Win32.cs`
+2. Add a monitor enumeration method that returns each monitor's work-area rectangle
+3. In `DeployService`, resolve `monitor: N` + relative `position` into absolute screen coordinates (offset by monitor N's origin) before calling `PositionWindow`
+4. In `SnapshotService`, reverse-lookup absolute coordinates to determine which monitor a window is on
+
+This would honor the `monitor` field that already exists in configs without requiring the full named-profile system.
+
 ### Risk Assessment
 
 | Risk | Severity | Likelihood | Recommendation |
