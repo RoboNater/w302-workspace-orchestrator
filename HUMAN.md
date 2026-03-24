@@ -67,8 +67,15 @@ Done:
 Read workspace-orchestrator-plan.md, phase-2-plan.md, and mvp-status.md to get context, then begin Phase 2 Sprint 2 "Polish + Browser". Execute the tasks per the plan, documenting task status as well as any findings or recommendations in the mvp-status.md markdown file as you go.  At the end of sprint, commit your work to git.
 ```
 
-NEXT:
+Done:
 2026-03-23 Start Phase 2 Sprint 3 "Polish + Browser"
 ```
 Read workspace-orchestrator-plan.md, phase-2-plan.md, and mvp-status.md to get context, then begin Phase 2 Sprint 3 "Global Hotkeys". Execute the tasks per the plan, documenting task status as well as any findings or recommendations in the mvp-status.md markdown file as you go.  At the end of sprint, commit your work to git.
+```
+
+
+Done:
+2026-03-23 Start Phase 2 Sprint 4 "Window State Snapshots"
+```
+Read workspace-orchestrator-plan.md, phase-2-plan.md, and mvp-status.md to get context, then begin Phase 2 Sprint 4 "Window State Snapshots". Execute the tasks per the plan, documenting task status as well as any findings or recommendations in the mvp-status.md markdown file as you go.  At the end of sprint, commit your work to git.
 ```
