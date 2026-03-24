@@ -55,9 +55,14 @@ INVESTIGATION COMPLETE:
 - Phase 2 is now unblocked and ready to start
 - See terminal-investigation.md, phase-2-readiness.md, INVESTIGATION_SUMMARY.md
 
-NEXT:
+Done
 2026-03-23 Start Phase 2 implementation
 ```
 Read poc-status.md, workspace-orchestrator-plan.md, and phase-2-readiness.md to get context, then begin Phase 2: Minimum Viable Product implementation. Make a detailed plan for the phase, write it to a new markdown file, then execute as much as you can of the plan, documenting your findings and recommendations in a new mvp-status.md markdown file as you go.
 ```
 
+NEXT:
+2026-03-23 Start Phase 2 Sprint 2 "Polish + Browser"
+```
+Read workspace-orchestrator-plan.md, phase-2-plan.md, and mvp-status.md to get context, then begin Phase 2 Sprint 2 "Polish + Browser". Execute the tasks per the plan, documenting task status as well as any findings or recommendations in the mvp-status.md markdown file as you go.  At the end of sprint, commit your work to git.
+```
