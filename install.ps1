@@ -36,6 +36,19 @@ if (-not (Test-Path $cliProject)) {
     exit 1
 }
 
+# 2a. Ensure nuget.org package source is configured (fresh SDK installs may lack it)
+$nugetSources = & dotnet nuget list source 2>&1
+if ($nugetSources -notmatch 'nuget\.org') {
+    Write-Host "  Adding nuget.org package source..." -ForegroundColor Yellow
+    & dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Could not add nuget.org source automatically. If the build fails, run:"
+        Write-Warning "  dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org"
+    } else {
+        Write-Host "  Added nuget.org package source" -ForegroundColor DarkGray
+    }
+}
+
 Write-Host "  Building ws.exe..." -ForegroundColor White
 & dotnet publish $cliProject `
     --configuration Release `
@@ -46,7 +59,13 @@ Write-Host "  Building ws.exe..." -ForegroundColor White
     -p:IncludeNativeLibrariesForSelfExtract=true
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Build failed. Is .NET 8 SDK installed? Run: winget install Microsoft.DotNet.SDK.8"
+    Write-Host ""
+    Write-Host "  Build failed. Common causes:" -ForegroundColor Red
+    Write-Host "    1. .NET 8 SDK not installed — run: winget install Microsoft.DotNet.SDK.8" -ForegroundColor Red
+    Write-Host "    2. NuGet package restore failed — check network/proxy access to nuget.org" -ForegroundColor Red
+    Write-Host "       Run 'dotnet nuget list source' to verify nuget.org is configured." -ForegroundColor Red
+    Write-Host "       If missing: dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org" -ForegroundColor Red
+    Write-Host "    3. Scroll up for the detailed error output from 'dotnet publish'." -ForegroundColor Red
     exit 1
 }
 

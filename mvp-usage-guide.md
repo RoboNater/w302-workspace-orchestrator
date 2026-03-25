@@ -497,6 +497,23 @@ Also verify PowerShell 7 is at the expected path:
 & "C:\Program Files\PowerShell\7\pwsh.exe" -Version
 ```
 
+### NuGet package restore fails (NU1100 errors)
+
+If `install.ps1` fails with errors like `Unable to resolve 'YamlDotNet'` or `Unable to resolve 'Spectre.Console'`, the NuGet package source is not configured. This is common on fresh .NET SDK installs.
+
+```powershell
+# Check configured NuGet sources
+dotnet nuget list source
+
+# If nuget.org is missing, add it:
+dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org
+
+# Then re-run the install
+pwsh -File .\install.ps1
+```
+
+If nuget.org is listed but restore still fails, the machine may be behind a firewall or proxy that blocks outbound HTTPS to `api.nuget.org`. Check with your network administrator.
+
 ### Build errors
 
 ```powershell
